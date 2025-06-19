@@ -26,8 +26,8 @@ final class ImagesListViewController: UIViewController {
             forCellReuseIdentifier: ImagesListCell.reuseIdentifier
         )
         
-        // Настройка отступов таблицы (16pt сверху/снизу)
-        tableView.contentInset = UIEdgeInsets(top: 16, left: 0, bottom: 16, right: 0)
+        // Настройка отступов таблицы (12 сверху/снизу)
+        tableView.contentInset = UIEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)
     }
     
     private func loadPhotosAndSizes() {
@@ -45,8 +45,8 @@ final class ImagesListViewController: UIViewController {
     
     // Расчет высоты ячейки на основе размера изображения
     private func calculateCellHeight(for imageSize: CGSize) -> CGFloat {
-        // Отступы вокруг изображения (8pt сверху/снизу, 16pt по бокам)
-        let imageInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
+        // Отступы вокруг изображения (4pt сверху/снизу, 16pt по бокам)
+        let imageInsets = UIEdgeInsets(top: 4, left: 16, bottom: 4, right: 16)
         
         // Ширина изображения с учетом отступов
         let imageViewWidth = tableView.bounds.width - imageInsets.left - imageInsets.right
