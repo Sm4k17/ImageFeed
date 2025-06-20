@@ -7,6 +7,13 @@
 
 import UIKit
 
+extension UIImage {
+    enum LikeButton {
+        static let on = UIImage(named: "like_button_on")
+        static let off = UIImage(named: "like_button_off")
+    }
+}
+
 final class ImagesListViewController: UIViewController {
     private enum Constants {
         static let defaultCellHeight: CGFloat = 200
@@ -92,8 +99,7 @@ extension ImagesListViewController: UITableViewDataSource {
             cell.setupGradient()
         }
         let isLiked = indexPath.row % 2 == 0
-        let likeImage = isLiked ? UIImage(named: "like_button_on") : UIImage(named: "like_button_off")
-        cell.likeButton.setImage(likeImage, for: .normal)
+        cell.likeButton.setImage(isLiked ? .LikeButton.on : .LikeButton.off, for: .normal)
     }
 }
 
