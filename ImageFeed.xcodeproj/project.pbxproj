@@ -10,6 +10,16 @@
 		F1E353512DFAE06800C3DD32 /* ImageFeed.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ImageFeed.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		F1E353632DFAE06800C3DD32 /* Exceptions for "ImageFeed" folder in "ImageFeed" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Resources/Info.plist,
+			);
+			target = F1E353502DFAE06800C3DD32 /* ImageFeed */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		F1E353532DFAE06800C3DD32 /* ImageFeed */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
