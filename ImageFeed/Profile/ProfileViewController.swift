@@ -8,13 +8,125 @@
 import UIKit
 
 final class ProfileViewController: UIViewController {
-    @IBOutlet weak var avatarImageView: UIImageView!
-    @IBOutlet weak var nameLabel: UILabel!
-    @IBOutlet weak var loginNameLabel: UILabel!
-    @IBOutlet weak var descriptionLabel: UILabel!
     
-    @IBOutlet weak var logoutButton: UIButton!
+    // MARK: - Constants
+    private enum Constants {
+        static let avatarSize: CGFloat = 70
+        static let buttonSize: CGFloat = 44
+        static let largeInset: CGFloat = 32
+        static let mediumInset: CGFloat = 16
+        static let smallInset: CGFloat = 8
+        static let nameFontSize: CGFloat = 23
+        static let secondaryFontSize: CGFloat = 13
+    }
     
-    @IBAction func didTapLogoutButton() {
+    // MARK: - UI Elements
+    private lazy var avatarImageView: UIImageView = {
+        let imageView = UIImageView()
+        imageView.accessibilityIdentifier = "avatarImageView"
+        imageView.image = UIImage(named: "avatar") ?? {
+            let image = UIImage(systemName: "person.crop.circle.fill")
+            imageView.tintColor = .ypGray
+            return image
+        }()
+        
+        return imageView
+    }()
+    
+    private lazy var nameLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Екатерина Новикова"
+        label.font = .systemFont(ofSize: Constants.nameFontSize, weight: .bold)
+        label.textColor = .ypWhite
+        label.accessibilityIdentifier = "nameLabel"
+        return label
+    }()
+    
+    private lazy var loginNameLabel: UILabel = {
+        let label = UILabel()
+        label.text = "@ekaterina_nov"
+        label.font = .systemFont(ofSize: Constants.secondaryFontSize)
+        label.textColor = .ypGray
+        label.accessibilityIdentifier = "loginNameLabel"
+        return label
+    }()
+    
+    private lazy var descriptionLabel: UILabel = {
+        let label = UILabel()
+        label.text = "Hello, world!"
+        label.font = .systemFont(ofSize: Constants.secondaryFontSize)
+        label.textColor = .ypWhite
+        label.accessibilityIdentifier = "descriptionLabel"
+        label.numberOfLines = 0
+        return label
+    }()
+    
+    private lazy var logoutButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setImage(UIImage(named: "logout_button") ?? UIImage(systemName: "rectangle.portrait.and.arrow.right"),
+                        for: .normal)
+        button.tintColor = .ypRed
+        button.accessibilityIdentifier = "logoutButton"
+        button.addTarget(self, action: #selector(didTapLogoutButton), for: .touchUpInside)
+        return button
+    }()
+    
+    // MARK: - Lifecycle
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupProfileUI()
+    }
+    
+    // MARK: - Setup Methods
+    private func setupProfileUI() {
+        [avatarImageView, nameLabel, loginNameLabel, descriptionLabel, logoutButton].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview($0)
+        }
+        
+        setupConstraints()
+    }
+    
+    private func setupConstraints() {
+        NSLayoutConstraint.activate([
+            // Avatar
+            avatarImageView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor,
+                                                 constant: Constants.largeInset),
+            avatarImageView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor,
+                                                     constant: Constants.mediumInset),
+            avatarImageView.widthAnchor.constraint(equalToConstant: Constants.avatarSize),
+            avatarImageView.heightAnchor.constraint(equalTo: avatarImageView.widthAnchor),
+            
+            // Name
+            nameLabel.topAnchor.constraint(equalTo: avatarImageView.bottomAnchor,
+                                           constant: Constants.smallInset),
+            nameLabel.leadingAnchor.constraint(equalTo: avatarImageView.leadingAnchor),
+            nameLabel.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+                                                constant: -Constants.mediumInset),
+            
+            // Login
+            loginNameLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor,
+                                                constant: Constants.smallInset),
+            loginNameLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
+            loginNameLabel.trailingAnchor.constraint(equalTo: nameLabel.trailingAnchor),
+            
+            // Description
+            descriptionLabel.topAnchor.constraint(equalTo: loginNameLabel.bottomAnchor,
+                                                  constant: Constants.smallInset),
+            descriptionLabel.leadingAnchor.constraint(equalTo: loginNameLabel.leadingAnchor),
+            descriptionLabel.trailingAnchor.constraint(equalTo: loginNameLabel.trailingAnchor),
+            
+            // Logout Button
+            logoutButton.centerYAnchor.constraint(equalTo: avatarImageView.centerYAnchor),
+            logoutButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+                                                   constant: -Constants.mediumInset),
+            logoutButton.widthAnchor.constraint(equalToConstant: Constants.buttonSize),
+            logoutButton.heightAnchor.constraint(equalTo: logoutButton.widthAnchor)
+        ])
+    }
+    
+    // MARK: - Actions
+    @objc private func didTapLogoutButton() {
+        
     }
 }
