@@ -50,64 +50,29 @@ final class SingleImageViewController: UIViewController {
         rescaleAndCenterImageInScrollView(image: image)
     }
     
-    private func rescaleAndCenterImageInScrollView(image: UIImage) {
+    private func rescaleAndCenterImageInScrollView(image: UIImage?) {
+        guard let image = image else {
+            return
+        }
         let minZoomScale = scrollView.minimumZoomScale
         let maxZoomScale = scrollView.maximumZoomScale
         view.layoutIfNeeded()
-        
         let visibleRectSize = scrollView.bounds.size
         let imageSize = image.size
         let hScale = visibleRectSize.width / imageSize.width
         let vScale = visibleRectSize.height / imageSize.height
-        
-        let scale = min(maxZoomScale, max(minZoomScale, min(hScale, vScale)))
+        let scale = min(maxZoomScale, max(minZoomScale, max(hScale, vScale)))
         scrollView.setZoomScale(scale, animated: false)
         scrollView.layoutIfNeeded()
-        
-        // Центрирование через contentInset
-        updateContentInset(for: image.size)
-    }
-    
-    private func updateContentInset(for imageSize: CGSize) {
-        let scrollViewSize = scrollView.bounds.size
-        let contentSize = scrollView.contentSize
-        
-        let horizontalInset = max(0, (scrollViewSize.width - contentSize.width) / 2)
-        let verticalInset = max(0, (scrollViewSize.height - contentSize.height) / 2)
-        
-        scrollView.contentInset = UIEdgeInsets(
-            top: verticalInset,
-            left: horizontalInset,
-            bottom: verticalInset,
-            right: horizontalInset
-        )
+        let newContentSize = scrollView.contentSize
+        let x = (newContentSize.width - visibleRectSize.width) / 2
+        let y = (newContentSize.height - visibleRectSize.height) / 2
+        scrollView.setContentOffset(CGPoint(x: x, y: y), animated: false)
     }
 }
 
 extension SingleImageViewController: UIScrollViewDelegate {
     func viewForZooming(in scrollView: UIScrollView) -> UIView? {
         return imageView
-    }
-    
-    // Вызывается после завершения зума
-    func scrollViewDidZoom(_ scrollView: UIScrollView) {
-        guard let image = imageView.image else { return }
-        updateContentInset(for: image.size)
-    }
-    
-    // Вызывается после завершения скролла (например, после отпускания пальца)
-    func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
-        if !decelerate {
-            centerImageIfNeeded()
-        }
-    }
-    
-    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
-        centerImageIfNeeded()
-    }
-    
-    private func centerImageIfNeeded() {
-        guard let image = imageView.image else { return }
-        updateContentInset(for: image.size)
     }
 }
