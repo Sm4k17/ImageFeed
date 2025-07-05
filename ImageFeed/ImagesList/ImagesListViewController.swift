@@ -7,30 +7,34 @@
 
 import UIKit
 
-extension UIImage {
-    enum LikeButton {
-        static let on = UIImage(named: "like_button_on")
-        static let off = UIImage(named: "like_button_off")
-    }
-}
-
 final class ImagesListViewController: UIViewController {
+    private let showSingleImageSegueIdentifier = "ShowSingleImage"
+    private let currentDate = Date() // Единый экземпляр даты для всех ячеек
     private enum Constants {
+        // MARK: - Layout Constants
         static let defaultCellHeight: CGFloat = 200
         static let tableViewContentInset = UIEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)
         static let imageInsets = UIEdgeInsets(top: 4, left: 16, bottom: 4, right: 16)
+        
+        // MARK: - Like Button Assets
+        enum LikeButton {
+            static let on = UIImage(named: "like_button_on")
+            static let off = UIImage(named: "like_button_off")
+        }
+        
+        // MARK: - Date Formatting
+        static let dateFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "ru_RU")
+            formatter.dateStyle = .long
+            formatter.timeStyle = .none
+            return formatter
+        }()
     }
     
     @IBOutlet private weak var tableView: UITableView!
     private var photosName = [String]()
     private var imageSizes = [CGSize]()
-    private let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ru_RU")
-        formatter.dateStyle = .long
-        formatter.timeStyle = .none
-        return formatter
-    }()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -38,11 +42,24 @@ final class ImagesListViewController: UIViewController {
         loadPhotosAndSizes()
     }
     
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == showSingleImageSegueIdentifier {
+            guard
+                let viewController = segue.destination as? SingleImageViewController,
+                let indexPath = sender as? IndexPath
+            else {
+                assertionFailure("Invalid segue destination")
+                return
+            }
+            
+            let image = UIImage(named: photosName[indexPath.row])
+            viewController.image = image
+        } else {
+            super.prepare(for: segue, sender: sender)
+        }
+    }
+    
     private func setupTableView() {
-        tableView.register(
-            UINib(nibName: "ImagesListCell", bundle: nil),
-            forCellReuseIdentifier: ImagesListCell.reuseIdentifier
-        )
         tableView.contentInset = Constants.tableViewContentInset
     }
     
@@ -89,8 +106,9 @@ extension ImagesListViewController: UITableViewDataSource {
         let photoName = photosName[indexPath.row]
         print("Настраиваем ячейку с изображением: \(photoName)")
         cell.cellImage.image = UIImage(named: photoName)
+        
         // Форматирование даты
-        let dateString = dateFormatter.string(from: Date())
+        let dateString = Constants.dateFormatter.string(from: currentDate)
         cell.dateLabel.text = dateString
             .replacingOccurrences(of: " г.", with: "")
             .replacingOccurrences(of: "г.", with: "")
@@ -99,7 +117,7 @@ extension ImagesListViewController: UITableViewDataSource {
             cell.setupGradient()
         }
         let isLiked = indexPath.row % 2 == 0
-        cell.likeButton.setImage(isLiked ? .LikeButton.on : .LikeButton.off, for: .normal)
+        cell.likeButton.setImage(isLiked ? Constants.LikeButton.on : Constants.LikeButton.off, for: .normal)
     }
 }
 
@@ -110,4 +128,9 @@ extension ImagesListViewController: UITableViewDelegate {
         }
         return calculateCellHeight(for: imageSizes[indexPath.row])
     }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        performSegue(withIdentifier: "ShowSingleImage", sender: indexPath)
+    }
 }
+
