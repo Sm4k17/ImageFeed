@@ -73,7 +73,8 @@ final class AuthViewController: UIViewController {
             loginButton.heightAnchor.constraint(equalToConstant: Constants.buttonHeight),
             loginButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Constants.horizontalInset),
             loginButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Constants.horizontalInset),
-            loginButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -Constants.buttonBottomInset)
+            loginButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -Constants.buttonBottomInset),
+            loginButton.centerXAnchor.constraint(equalTo: view.centerXAnchor)
         ])
     }
     
@@ -91,14 +92,18 @@ extension AuthViewController: WebViewViewControllerDelegate {
     func webViewViewController(_ vc: WebViewViewController, didAuthenticateWithCode code: String) {
         startAuthProcess()
         
-        OAuth2Service.shared.fetchAuthToken(code: code) { [weak self] result in
-            guard let self = self else { return }
-            
-            switch result {
-            case .success(let token):
-                self.handleAuthSuccess(token: token)
-            case .failure(let error):
-                self.handleAuthFailure(error: error)
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            OAuth2Service.shared.fetchAuthToken(code: code) { result in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    
+                    switch result {
+                    case .success(let token):
+                        self.handleAuthSuccess(token: token)
+                    case .failure(let error):
+                        self.handleAuthFailure(error: error)
+                    }
+                }
             }
         }
     }
@@ -109,19 +114,25 @@ extension AuthViewController: WebViewViewControllerDelegate {
     
     // MARK: - Private Methods
     private func startAuthProcess() {
-        loginButton.isEnabled = false
-        loginButton.alpha = 0.5
+        DispatchQueue.main.async {
+            self.loginButton.isEnabled = false
+            self.loginButton.alpha = 0.5
+        }
     }
     
     private func endAuthProcess() {
-        loginButton.isEnabled = true
-        loginButton.alpha = 1.0
+        DispatchQueue.main.async {
+            self.loginButton.isEnabled = true
+            self.loginButton.alpha = 1.0
+        }
     }
     
     private func handleAuthSuccess(token: String) {
-        OAuth2TokenStorage.shared.token = token
-        endAuthProcess()
+        DispatchQueue.global(qos: .utility).async {
+            OAuth2TokenStorage.shared.token = token
+        }
         
+        endAuthProcess()
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.delegate?.authViewController(self, didAuthenticateWithToken: token)
@@ -131,7 +142,6 @@ extension AuthViewController: WebViewViewControllerDelegate {
     
     private func handleAuthFailure(error: Error) {
         endAuthProcess()
-        
         DispatchQueue.main.async { [weak self] in
             self?.showAuthError(error)
             self?.dismiss(animated: true)
@@ -140,7 +150,9 @@ extension AuthViewController: WebViewViewControllerDelegate {
     
     private func handleAuthCancellation() {
         endAuthProcess()
-        dismiss(animated: true)
+        DispatchQueue.main.async { [weak self] in
+            self?.dismiss(animated: true)
+        }
     }
     
     private func showAuthError(_ error: Error) {

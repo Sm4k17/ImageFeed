@@ -13,11 +13,6 @@ final class WebViewViewController: UIViewController {
     weak var delegate: WebViewViewControllerDelegate?
     
     // MARK: - Private Constants
-    private enum WebViewConstants {
-        static let unsplashAuthorizeURLString = "https://unsplash.com/oauth/authorize"
-    }
-    
-    // MARK: - Private Constants
     private enum Constants {
         static let backButtonSize: CGFloat = 44
         static let backButtonTopInset: CGFloat = 8
@@ -33,6 +28,7 @@ final class WebViewViewController: UIViewController {
     // MARK: - UI Components
     private lazy var webView: WKWebView = {
         let webView = WKWebView()
+        webView.tintColor = .systemBlue
         webView.translatesAutoresizingMaskIntoConstraints = false
         webView.accessibilityIdentifier = "webView"
         return webView
@@ -90,20 +86,17 @@ final class WebViewViewController: UIViewController {
     
     private func setupConstraints() {
         NSLayoutConstraint.activate([
-            backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: Constants.backButtonTopInset),
-            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Constants.backButtonLeadingInset),
-            backButton.widthAnchor.constraint(equalToConstant: Constants.backButtonSize),
-            backButton.heightAnchor.constraint(equalToConstant: Constants.backButtonSize),
-            
-            progressView.topAnchor.constraint(equalTo: backButton.bottomAnchor,
-                                              constant: Constants.progressViewTopInset),
-            progressView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
-            progressView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            
-            webView.topAnchor.constraint(equalTo: progressView.bottomAnchor),
+            webView.topAnchor.constraint(equalTo: view.topAnchor),
+            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+            
+            progressView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            progressView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            progressView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            
+            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            backButton.topAnchor.constraint(equalTo: progressView.bottomAnchor)
         ])
     }
     
@@ -126,7 +119,7 @@ final class WebViewViewController: UIViewController {
         let unsplashAuthorizeURLString = "https://unsplash.com/oauth/authorize"
         
         guard var urlComponents = URLComponents(string: unsplashAuthorizeURLString) else {
-            assertionFailure("Failed to create URL components")
+            print("Failed to create URL components")
             return
         }
         
@@ -148,14 +141,37 @@ final class WebViewViewController: UIViewController {
     
     // Метод для извлечения кода авторизации из URL
     private func code(from navigationAction: WKNavigationAction) -> String? {
-        guard let url = navigationAction.request.url,
-              let urlComponents = URLComponents(string: url.absoluteString),
-              urlComponents.path == "/oauth/authorize/native",
-              let items = urlComponents.queryItems,
-              let codeItem = items.first(where: { $0.name == "code" })
-        else { return nil }
+        guard let url = navigationAction.request.url else {
+            print("Failed to get URL from navigation action")
+            return nil
+        }
         
-        return codeItem.value
+        // Проверка для стандартного redirect URI
+        if url.absoluteString.hasPrefix(ImageFeed.Constants.redirectURI),
+           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+           let codeItem = components.queryItems?.first(where: { $0.name == "code" }) {
+            print("Extracted code from redirect URI: \(codeItem.value ?? "")")
+            return codeItem.value
+        }
+        
+        // Проверка для native URL (новый случай)
+        if url.absoluteString.contains("unsplash.com/oauth/authorize/native"),
+           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+           let codeItem = components.queryItems?.first(where: { $0.name == "code" }) {
+            print("Extracted code from native URL: \(codeItem.value ?? "")")
+            return codeItem.value
+        }
+        
+        // Универсальная проверка по наличию параметра code
+        if url.absoluteString.contains("code="),
+           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+           let codeItem = components.queryItems?.first(where: { $0.name == "code" }) {
+            print("Extracted code from generic URL: \(codeItem.value ?? "")")
+            return codeItem.value
+        }
+        
+        print("No code found in URL: \(url.absoluteString)")
+        return nil
     }
     
     // MARK: - Actions
@@ -190,18 +206,21 @@ final class WebViewViewController: UIViewController {
 
 // MARK: - WKNavigationDelegate
 extension WebViewViewController: WKNavigationDelegate {
-    func webView(
-        _ webView: WKWebView,
-        decidePolicyFor navigationAction: WKNavigationAction,
-        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
-    ) {
-        // Пытаемся получить код авторизации
-        if let code = code(from: navigationAction) {
-            // Передаём код делегату
-            delegate?.webViewViewController(self, didAuthenticateWithCode: code)
-            decisionHandler(.cancel)  // Отменяем навигацию
-        } else {
-            decisionHandler(.allow)  // Разрешаем навигацию
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else {
+                decisionHandler(.allow)
+                return
+            }
+            
+            if let code = self.code(from: navigationAction) {
+                DispatchQueue.main.async {
+                    self.delegate?.webViewViewController(self, didAuthenticateWithCode: code)
+                }
+                decisionHandler(.cancel)
+            } else {
+                decisionHandler(.allow)
+            }
         }
     }
 }

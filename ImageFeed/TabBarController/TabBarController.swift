@@ -19,6 +19,7 @@ final class MainTabBarController: UITabBarController {
         tabBar.barTintColor = .ypBlack
         tabBar.tintColor = .ypWhite
         tabBar.unselectedItemTintColor = .ypGray
+        tabBar.isTranslucent = false // Убираем прозрачность
     }
     
     private func setupTabBar() {

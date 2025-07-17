@@ -127,6 +127,47 @@ final class ProfileViewController: UIViewController {
     
     // MARK: - Actions
     @objc private func didTapLogoutButton() {
+        let alert = UIAlertController(
+            title: "Выход",
+            message: "Вы уверены, что хотите выйти?",
+            preferredStyle: .alert
+        )
         
+        alert.addAction(UIAlertAction(title: "Да", style: .default) { [weak self] _ in
+            self?.performLogout()
+        })
+        
+        alert.addAction(UIAlertAction(title: "Нет", style: .cancel))
+        
+        present(alert, animated: true)
+    }
+    
+    private func performLogout() {
+        // 1. Очищаем токен
+        OAuth2TokenStorage.shared.token = nil
+        
+        // 2. Проверяем, что токен действительно удален
+        guard OAuth2TokenStorage.shared.token == nil else {
+            print("Failed to delete token")
+            return
+        }
+        
+        // 3. Переходим к экрану авторизации
+        DispatchQueue.main.async {
+            guard let window = UIApplication.shared.windows.first else {
+                print("No window found")
+                return
+            }
+            
+            let splashVC = SplashViewController()
+            window.rootViewController = splashVC
+            
+            UIView.transition(
+                with: window,
+                duration: 0.3,
+                options: .transitionCrossDissolve,
+                animations: nil
+            )
+        }
     }
 }

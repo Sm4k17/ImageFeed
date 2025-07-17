@@ -19,6 +19,6 @@ enum Constants {
 }
 
 enum KeychainConfig {
-    static let serviceName = "com.yourapp.ImageFeed"
+    static let serviceName = "ru.yandex.practicum.ImageF8eed"
     static let tokenAccount = "OAuth2Token"
 }

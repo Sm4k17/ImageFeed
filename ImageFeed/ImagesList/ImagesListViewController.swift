@@ -20,11 +20,6 @@ final class ImagesListViewController: UIViewController {
         static let imageInsets = UIEdgeInsets(top: 4, left: 16, bottom: 4, right: 16)
         static let photosCount = 20
         
-        enum LikeButton {
-            static let on = UIImage(named: "like_button_on")
-            static let off = UIImage(named: "like_button_off")
-        }
-        
         static let dateFormatter: DateFormatter = {
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "ru_RU")
@@ -99,7 +94,10 @@ final class ImagesListViewController: UIViewController {
         let isLiked = indexPath.row % 2 == 0
         cell.setLikeButtonImage(isLiked: isLiked)
         
-        cell.setupGradient()
+        // Устанавливаем градиент после загрузки изображения
+        DispatchQueue.main.async {
+            cell.setupGradient()
+        }
     }
 }
 
