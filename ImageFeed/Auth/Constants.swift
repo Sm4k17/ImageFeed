@@ -17,7 +17,7 @@ enum Constants {
     static let unsplashTokenURLString = "https://unsplash.com/oauth/token"
     
 }
- 
+
 enum KeychainConfig {
     static let serviceName = "com.yourapp.ImageFeed"
     static let tokenAccount = "OAuth2Token"

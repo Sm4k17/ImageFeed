@@ -9,10 +9,14 @@ import Foundation
 import Security
 
 final class OAuth2TokenStorage {
+    // MARK: - Singleton
     static let shared = OAuth2TokenStorage()
-    private let service = "com.yourapp.ImageFeed"
-    private let account = "OAuth2Token"
     
+    // MARK: - Private Properties
+    private let service = KeychainConfig.serviceName
+    private let account = KeychainConfig.tokenAccount
+    
+    // MARK: - Public Properties
     var token: String? {
         get {
             var query = baseQuery()
@@ -26,8 +30,7 @@ final class OAuth2TokenStorage {
             guard status == errSecSuccess,
                   let existingItem = item as? [String: Any],
                   let tokenData = existingItem[kSecValueData as String] as? Data,
-                  let token = String(data: tokenData, encoding: .utf8)
-            else {
+                  let token = String(data: tokenData, encoding: .utf8) else {
                 return nil
             }
             
@@ -42,8 +45,9 @@ final class OAuth2TokenStorage {
         }
     }
     
+    // MARK: - Private Methods
     private func baseQuery() -> [String: Any] {
-        return [
+        [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account
@@ -60,8 +64,9 @@ final class OAuth2TokenStorage {
         query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
         
         let status = SecItemAdd(query as CFDictionary, nil)
-        if status != errSecSuccess {
+        guard status == errSecSuccess else {
             print("Error saving token to Keychain: \(status)")
+            return
         }
     }
     
@@ -69,8 +74,7 @@ final class OAuth2TokenStorage {
         let query = baseQuery()
         let status = SecItemDelete(query as CFDictionary)
         
-        if status != errSecSuccess && status != errSecItemNotFound {
-            print("Error deleting token from Keychain: \(status)")
-        }
+        guard status != errSecSuccess && status != errSecItemNotFound else { return }
+        print("Error deleting token from Keychain: \(status)")
     }
 }

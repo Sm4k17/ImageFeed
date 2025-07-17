@@ -8,10 +8,14 @@
 import Foundation
 
 final class OAuth2Service {
+    // MARK: - Singleton
     static let shared = OAuth2Service()
+    
+    // MARK: - Private Properties
     private let networkClient = NetworkClient()
     private var lastCode: String?
     
+    // MARK: - Public Methods
     func fetchAuthToken(
         code: String,
         completion: @escaping (Result<String, Error>) -> Void
@@ -20,8 +24,10 @@ final class OAuth2Service {
         lastCode = code
         
         networkClient.fetchOAuthToken(code: code) { [weak self] result in
-            self?.lastCode = nil
-            completion(result)
+            DispatchQueue.main.async {
+                self?.lastCode = nil
+                completion(result)
+            }
         }
     }
 }

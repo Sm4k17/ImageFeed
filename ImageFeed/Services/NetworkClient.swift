@@ -120,33 +120,33 @@ final class NetworkClient: NetworkRouting {
     }
     
     private func processTokenResponse(
-            data: Data?,
-            response: URLResponse?,
-            error: Error?
-        ) -> Result<String, Error> {
-            if let error = error {
-                logError(error)
-                return .failure(mapError(error))
-            }
-            
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode),
-                  let data = data else {
-                if let httpResponse = response as? HTTPURLResponse {
-                    return .failure(NetworkError.codeError(httpResponse.statusCode))
-                }
-                return .failure(NetworkError.invalidResponse)
-            }
-            
-            do {
-                let responseBody = try decoder.decode(OAuthTokenResponse.self, from: data)
-                logSuccess("Token received")
-                return .success(responseBody.accessToken)
-            } catch {
-                logDecodingError(error)
-                return .failure(error)
-            }
+        data: Data?,
+        response: URLResponse?,
+        error: Error?
+    ) -> Result<String, Error> {
+        if let error = error {
+            logError(error)
+            return .failure(mapError(error))
         }
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200..<300).contains(httpResponse.statusCode),
+              let data = data else {
+            if let httpResponse = response as? HTTPURLResponse {
+                return .failure(NetworkError.codeError(httpResponse.statusCode))
+            }
+            return .failure(NetworkError.invalidResponse)
+        }
+        
+        do {
+            let responseBody = try decoder.decode(OAuthTokenResponse.self, from: data)
+            logSuccess("Token received")
+            return .success(responseBody.accessToken)
+        } catch {
+            logDecodingError(error)
+            return .failure(error)
+        }
+    }
     
     private func mapError(_ error: Error) -> Error {
         let nsError = error as NSError
