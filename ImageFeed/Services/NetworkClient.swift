@@ -11,6 +11,7 @@ final class NetworkClient {
     
     // MARK: - Nested Types
     enum NetworkError: LocalizedError {
+        case invalidRequest
         case codeError(Int)
         case invalidData
         case invalidResponse
@@ -21,6 +22,8 @@ final class NetworkClient {
         
         var errorDescription: String? {
             switch self {
+            case .invalidRequest:
+                return "Invalid request parameters"
             case .codeError(let code):
                 return "Server returned status code \(code)"
             case .invalidData:
@@ -39,30 +42,18 @@ final class NetworkClient {
         }
     }
     
-    private struct OAuthTokenResponse: Decodable {
-        let accessToken: String
-        let tokenType: String
-        let refreshToken: String?
-        let scope: String
-        let createdAt: Int
-        let username: String?
-        let userId: Int?
-        
-        enum CodingKeys: String, CodingKey {
-            case accessToken = "access_token"
-            case tokenType = "token_type"
-            case refreshToken = "refresh_token"
-            case scope
-            case createdAt = "created_at"
-            case username
-            case userId = "user_id"
-        }
+    enum HTTPMethod: String {
+        case get = "GET"
+        case post = "POST"
+        case put = "PUT"
+        case delete = "DELETE"
+        case patch = "PATCH"
     }
     
     // MARK: - Properties
     private var currentTask: URLSessionTask?
     private let session: URLSession
-    private let decoder: JSONDecoder = {
+    private lazy var decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return decoder
@@ -80,7 +71,11 @@ final class NetworkClient {
     ) {
         cancelPendingRequest()
         
-        let request = makeTokenRequest(code: code)
+        guard let request = makeTokenRequest(code: code) else {
+            completion(.failure(NetworkError.invalidRequest))
+            return
+        }
+        
         logRequest(request)
         
         currentTask = session.dataTask(with: request) { [weak self] data, response, error in
@@ -100,15 +95,15 @@ final class NetworkClient {
         currentTask?.resume()
     }
     
-    func cancel() {
-        cancelPendingRequest()
-    }
-    
     // MARK: - Private Methods
-    private func makeTokenRequest(code: String) -> URLRequest {
-        let url = URL(string: Constants.unsplashTokenURLString)!
+    private func makeTokenRequest(code: String) -> URLRequest? {
+        guard let url = URL(string: Constants.unsplashTokenURLString) else {
+            print("[Network] Error: Invalid URL string - \(Constants.unsplashTokenURLString)")
+            return nil
+        }
+        
         var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        request.httpMethod = HTTPMethod.post.rawValue
         
         let parameters = [
             "client_id": Constants.accessKey,
@@ -119,7 +114,13 @@ final class NetworkClient {
         ]
         
         let bodyString = parameters.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
-        request.httpBody = bodyString.data(using: .utf8)
+        
+        guard let httpBody = bodyString.data(using: .utf8) else {
+            print("[Network] Error: Failed to create HTTP body from parameters")
+            return nil
+        }
+        
+        request.httpBody = httpBody
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         
         return request
@@ -158,12 +159,10 @@ final class NetworkClient {
         logResponseData(data)
         
         do {
-            // Попытка декодирования полной структуры
             let responseBody = try decoder.decode(OAuthTokenResponse.self, from: data)
             logSuccess("Token received successfully")
             return .success(responseBody.accessToken)
         } catch let decodingError {
-            // Fallback: попытка извлечь токен вручную
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let token = json["access_token"] as? String {
                 logWarning("Used fallback token extraction")
@@ -195,7 +194,7 @@ final class NetworkClient {
         currentTask = nil
     }
     
-    // MARK: - Enhanced Logging
+    // MARK: - Logging Methods
     private func logRequest(_ request: URLRequest) {
         #if DEBUG
         print("""

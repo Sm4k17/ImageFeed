@@ -7,33 +7,38 @@
 
 import UIKit
 
-final class ImagesListCell: UITableViewCell {
-    // MARK: - Constants
-    static let reuseIdentifier = "ImagesListCell"
+// MARK: - Constants
+private enum ImagesListCellConstants {
+    static let cornerRadius: CGFloat = 16
+    static let imageInsets = UIEdgeInsets(top: 4, left: 16, bottom: 4, right: 16)
+    static let likeButtonSize: CGSize = CGSize(width: 42, height: 42)
+    static let dateLabelInsets = UIEdgeInsets(top: 0, left: 8, bottom: 8, right: 0)
+    static let gradientHeight: CGFloat = 30
+    static let dateLabelFontSize: CGFloat = 13
     
-    private enum Constants {
-        static let cornerRadius: CGFloat = 16
-        static let imageInsets = UIEdgeInsets(top: 4, left: 16, bottom: 4, right: 16)
-        static let likeButtonSize: CGSize = CGSize(width: 42, height: 42)
-        static let dateLabelInsets = UIEdgeInsets(top: 0, left: 8, bottom: 8, right: 0)
-        static let gradientHeight: CGFloat = 30
+    enum Images {
+        static let likeButtonOn = "like_button_on"
+        static let likeButtonOff = "like_button_off"
     }
+}
+
+// MARK: - ImagesListCell
+final class ImagesListCell: UITableViewCell {
+    static let reuseIdentifier = "ImagesListCell"
     
     // MARK: - UI Elements
     lazy var cellImage: UIImageView = {
         let imageView = UIImageView()
         imageView.contentMode = .scaleAspectFill
-        imageView.layer.cornerRadius = Constants.cornerRadius
+        imageView.layer.cornerRadius = ImagesListCellConstants.cornerRadius
         imageView.clipsToBounds = true
-        imageView.translatesAutoresizingMaskIntoConstraints = false
         return imageView
     }()
     
     lazy var dateLabel: UILabel = {
         let label = UILabel()
-        label.font = UIFont.systemFont(ofSize: 13)
+        label.font = UIFont.systemFont(ofSize: ImagesListCellConstants.dateLabelFontSize)
         label.textColor = .ypWhite
-        label.translatesAutoresizingMaskIntoConstraints = false
         return label
     }()
     
@@ -41,7 +46,6 @@ final class ImagesListCell: UITableViewCell {
         let button = UIButton()
         button.addTarget(self, action: #selector(didTapLikeButton), for: .touchUpInside)
         button.accessibilityIdentifier = "likeButton"
-        button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()
     
@@ -51,12 +55,13 @@ final class ImagesListCell: UITableViewCell {
     // MARK: - Lifecycle
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
-        setupView()
+        setupCellUI()
         setupConstraints()
     }
-    
+
     required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+        print("init(coder:) is not implemented - using programmatic layout")
+        return nil
     }
     
     override func layoutSubviews() {
@@ -71,44 +76,46 @@ final class ImagesListCell: UITableViewCell {
     }
     
     // MARK: - Setup Methods
-    private func setupView() {
+    private func setupCellUI() {
         backgroundColor = .ypBlack
         selectionStyle = .none
-        contentView.addSubview(cellImage)
-        contentView.addSubview(likeButton)
-        contentView.addSubview(dateLabel)
+        
+        [cellImage, likeButton, dateLabel].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            contentView.addSubview($0)
+        }
     }
     
     private func setupConstraints() {
         NSLayoutConstraint.activate([
             // Cell Image
             cellImage.topAnchor.constraint(equalTo: contentView.topAnchor,
-                                           constant: Constants.imageInsets.top),
+                                           constant: ImagesListCellConstants.imageInsets.top),
             cellImage.leadingAnchor.constraint(equalTo: contentView.leadingAnchor,
-                                               constant: Constants.imageInsets.left),
+                                               constant: ImagesListCellConstants.imageInsets.left),
             cellImage.trailingAnchor.constraint(equalTo: contentView.trailingAnchor,
-                                                constant: -Constants.imageInsets.right),
+                                                constant: -ImagesListCellConstants.imageInsets.right),
             cellImage.bottomAnchor.constraint(equalTo: contentView.bottomAnchor,
-                                              constant: -Constants.imageInsets.bottom),
+                                              constant: -ImagesListCellConstants.imageInsets.bottom),
             
             // Like Button
             likeButton.topAnchor.constraint(equalTo: cellImage.topAnchor),
             likeButton.trailingAnchor.constraint(equalTo: cellImage.trailingAnchor),
-            likeButton.widthAnchor.constraint(equalToConstant: Constants.likeButtonSize.width),
-            likeButton.heightAnchor.constraint(equalToConstant: Constants.likeButtonSize.height),
+            likeButton.widthAnchor.constraint(equalToConstant: ImagesListCellConstants.likeButtonSize.width),
+            likeButton.heightAnchor.constraint(equalToConstant: ImagesListCellConstants.likeButtonSize.height),
             
             // Date Label
             dateLabel.leadingAnchor.constraint(equalTo: cellImage.leadingAnchor,
-                                               constant: Constants.dateLabelInsets.left),
+                                               constant: ImagesListCellConstants.dateLabelInsets.left),
             dateLabel.bottomAnchor.constraint(equalTo: cellImage.bottomAnchor,
-                                              constant: -Constants.dateLabelInsets.bottom)
+                                              constant: -ImagesListCellConstants.dateLabelInsets.bottom)
         ])
     }
     
     // MARK: - Public Methods
     func setLikeButtonImage(isLiked: Bool) {
-        let image = isLiked ? UIImage(named: "like_button_on") : UIImage(named: "like_button_off")
-        likeButton.setImage(image, for: .normal)
+        let imageName = isLiked ? ImagesListCellConstants.Images.likeButtonOn : ImagesListCellConstants.Images.likeButtonOff
+        likeButton.setImage(UIImage(named: imageName), for: .normal)
     }
     
     func setupGradient() {
@@ -129,9 +136,9 @@ final class ImagesListCell: UITableViewCell {
     private func updateGradientFrame() {
         gradientLayer?.frame = CGRect(
             x: 0,
-            y: cellImage.bounds.height - Constants.gradientHeight,
+            y: cellImage.bounds.height - ImagesListCellConstants.gradientHeight,
             width: cellImage.bounds.width,
-            height: Constants.gradientHeight
+            height: ImagesListCellConstants.gradientHeight
         )
     }
     

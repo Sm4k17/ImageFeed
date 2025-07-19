@@ -8,39 +8,39 @@
 import UIKit
 import WebKit
 
+// MARK: - Constants
+private enum WebViewConstants {
+    static let backButtonSize: CGFloat = 44
+    static let backButtonTopInset: CGFloat = 8
+    static let backButtonLeadingInset: CGFloat = 8
+    static let progressViewTopInset: CGFloat = 8
+    static let progressComparisonPrecision = 0.0001
+    static let progressCornerRadius: CGFloat = 2
+    
+    enum Images {
+        static let backButton = "nav_back_button"
+    }
+}
+
+// MARK: - WebViewViewController
 final class WebViewViewController: UIViewController {
     // MARK: - Public Properties
     weak var delegate: WebViewViewControllerDelegate?
-    
-    // MARK: - Private Constants
-    private enum Constants {
-        static let backButtonSize: CGFloat = 44
-        static let backButtonTopInset: CGFloat = 8
-        static let backButtonLeadingInset: CGFloat = 8
-        static let progressViewTopInset: CGFloat = 8
-        static let progressComparisonPrecision = 0.0001
-        
-        enum Images {
-            static let backButton = "nav_back_button"
-        }
-    }
     
     // MARK: - UI Components
     private lazy var webView: WKWebView = {
         let webView = WKWebView()
         webView.tintColor = .systemBlue
-        webView.translatesAutoresizingMaskIntoConstraints = false
         webView.accessibilityIdentifier = "webView"
         return webView
     }()
     
     private lazy var backButton: UIButton = {
         let button = UIButton(type: .custom)
-        button.setImage(UIImage(named: Constants.Images.backButton), for: .normal)
+        button.setImage(UIImage(named: WebViewConstants.Images.backButton), for: .normal)
         button.tintColor = .ypBlack
         button.accessibilityIdentifier = "backButton"
         button.addTarget(self, action: #selector(didTapBackButton), for: .touchUpInside)
-        button.translatesAutoresizingMaskIntoConstraints = false
         return button
     }()
     
@@ -49,9 +49,8 @@ final class WebViewViewController: UIViewController {
         view.progressViewStyle = .bar
         view.progressTintColor = .ypBlack
         view.trackTintColor = .ypGray
-        view.translatesAutoresizingMaskIntoConstraints = false
         view.accessibilityIdentifier = "progressView"
-        view.layer.cornerRadius = 2
+        view.layer.cornerRadius = WebViewConstants.progressCornerRadius
         view.layer.masksToBounds = true
         return view
     }()
@@ -69,7 +68,7 @@ final class WebViewViewController: UIViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupView()
+        setupWebViewUI()
         setupConstraints()
         setupProgressObserver()
         loadAuthView()
@@ -77,11 +76,12 @@ final class WebViewViewController: UIViewController {
     }
     
     // MARK: - Setup Methods
-    private func setupView() {
+    private func setupWebViewUI() {
         view.backgroundColor = .ypWhite
-        view.addSubview(webView)
-        view.addSubview(backButton)
-        view.addSubview(progressView)
+        [webView, backButton, progressView].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview($0)
+        }
     }
     
     private func setupConstraints() {
@@ -95,8 +95,12 @@ final class WebViewViewController: UIViewController {
             progressView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             progressView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             
-            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            backButton.topAnchor.constraint(equalTo: progressView.bottomAnchor)
+            backButton.leadingAnchor.constraint(equalTo: view.leadingAnchor,
+                                                constant: WebViewConstants.backButtonLeadingInset),
+            backButton.topAnchor.constraint(equalTo: progressView.bottomAnchor,
+                                            constant: WebViewConstants.backButtonTopInset),
+            backButton.widthAnchor.constraint(equalToConstant: WebViewConstants.backButtonSize),
+            backButton.heightAnchor.constraint(equalToConstant: WebViewConstants.backButtonSize)
         ])
     }
     
@@ -139,14 +143,14 @@ final class WebViewViewController: UIViewController {
         webView.load(request)
     }
     
-    // Метод для извлечения кода авторизации из URL
+    // MARK: - Code Extraction
     private func code(from navigationAction: WKNavigationAction) -> String? {
         guard let url = navigationAction.request.url else {
             print("Failed to get URL from navigation action")
             return nil
         }
         
-        // Проверка для стандартного redirect URI
+        // Check for standard redirect URI
         if url.absoluteString.hasPrefix(ImageFeed.Constants.redirectURI),
            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
            let codeItem = components.queryItems?.first(where: { $0.name == "code" }) {
@@ -154,7 +158,7 @@ final class WebViewViewController: UIViewController {
             return codeItem.value
         }
         
-        // Проверка для native URL (новый случай)
+        // Check for native URL
         if url.absoluteString.contains("unsplash.com/oauth/authorize/native"),
            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
            let codeItem = components.queryItems?.first(where: { $0.name == "code" }) {
@@ -162,7 +166,7 @@ final class WebViewViewController: UIViewController {
             return codeItem.value
         }
         
-        // Универсальная проверка по наличию параметра code
+        // Generic check for code parameter
         if url.absoluteString.contains("code="),
            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
            let codeItem = components.queryItems?.first(where: { $0.name == "code" }) {
@@ -179,6 +183,17 @@ final class WebViewViewController: UIViewController {
         delegate?.webViewViewControllerDidCancel(self)
     }
     
+    // MARK: - Progress Updates
+    private func updateProgress() {
+        let progress = Float(webView.estimatedProgress)
+        progressView.setProgress(progress, animated: true)
+        progressView.isHidden = isProgressComplete(webView.estimatedProgress)
+    }
+    
+    private func isProgressComplete(_ progress: Double) -> Bool {
+        return fabs(progress - 1.0) <= WebViewConstants.progressComparisonPrecision
+    }
+    
     // MARK: - KVO Observation
     override func observeValue(
         forKeyPath keyPath: String?,
@@ -192,23 +207,17 @@ final class WebViewViewController: UIViewController {
             super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
         }
     }
-    
-    private func updateProgress() {
-        let progress = Float(webView.estimatedProgress)
-        progressView.setProgress(progress, animated: true)
-        progressView.isHidden = isProgressComplete(webView.estimatedProgress)
-    }
-    
-    private func isProgressComplete(_ progress: Double) -> Bool {
-        return fabs(progress - 1.0) <= Constants.progressComparisonPrecision
-    }
 }
 
 // MARK: - WKNavigationDelegate
 extension WebViewViewController: WKNavigationDelegate {
-    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else {
+            guard let self else {
                 decisionHandler(.allow)
                 return
             }

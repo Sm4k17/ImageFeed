@@ -7,31 +7,33 @@
 
 import UIKit
 
+// MARK: - Constants
+private enum AuthConstants {
+    static let logoSize: CGFloat = 60
+    static let buttonHeight: CGFloat = 48
+    static let buttonBottomInset: CGFloat = 90
+    static let horizontalInset: CGFloat = 16
+    static let buttonCornerRadius: CGFloat = 16
+    static let buttonFontSize: CGFloat = 17
+    
+    enum Images {
+        static let authLogo = "auth_screen_logo"
+    }
+    
+    enum Texts {
+        static let loginButton = "Войти"
+    }
+}
+
+// MARK: - AuthViewController
 final class AuthViewController: UIViewController {
     // MARK: - Public Properties
     weak var delegate: AuthViewControllerDelegate?
     private let oauth2Service = OAuth2Service.shared
     
-    // MARK: - Private Constants
-    private enum Constants {
-        static let logoSize: CGFloat = 60
-        static let buttonHeight: CGFloat = 48
-        static let buttonBottomInset: CGFloat = 90
-        static let horizontalInset: CGFloat = 16
-        
-        enum Images {
-            static let authLogo = "auth_screen_logo"
-        }
-        
-        enum Texts {
-            static let loginButton = "Войти"
-        }
-    }
-    
     // MARK: - UI Components
     private lazy var logoView: UIImageView = {
-        let imageView = UIImageView(image: UIImage(named: Constants.Images.authLogo))
-        imageView.translatesAutoresizingMaskIntoConstraints = false
+        let imageView = UIImageView(image: UIImage(named: AuthConstants.Images.authLogo))
         imageView.accessibilityIdentifier = "authLogo"
         return imageView
     }()
@@ -39,11 +41,10 @@ final class AuthViewController: UIViewController {
     private lazy var loginButton: UIButton = {
         let button = UIButton(type: .system)
         button.backgroundColor = .ypWhite
-        button.layer.cornerRadius = 16
-        button.setTitle(Constants.Texts.loginButton, for: .normal)
+        button.layer.cornerRadius = AuthConstants.buttonCornerRadius
+        button.setTitle(AuthConstants.Texts.loginButton, for: .normal)
         button.setTitleColor(.ypBlack, for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .bold)
-        button.translatesAutoresizingMaskIntoConstraints = false
+        button.titleLabel?.font = UIFont.systemFont(ofSize: AuthConstants.buttonFontSize, weight: .bold)
         button.accessibilityIdentifier = "loginButton"
         button.addTarget(self, action: #selector(didTapLoginButton), for: .touchUpInside)
         return button
@@ -52,28 +53,37 @@ final class AuthViewController: UIViewController {
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
+        setupAuthUI()
         setupView()
         setupConstraints()
     }
     
     // MARK: - Setup Methods
+    private func setupAuthUI() {
+        [logoView, loginButton].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            view.addSubview($0)
+        }
+    }
+    
     private func setupView() {
         view.backgroundColor = .ypBlack
-        view.addSubview(logoView)
-        view.addSubview(loginButton)
     }
     
     private func setupConstraints() {
         NSLayoutConstraint.activate([
-            logoView.heightAnchor.constraint(equalToConstant: Constants.logoSize),
-            logoView.widthAnchor.constraint(equalToConstant: Constants.logoSize),
+            logoView.heightAnchor.constraint(equalToConstant: AuthConstants.logoSize),
+            logoView.widthAnchor.constraint(equalToConstant: AuthConstants.logoSize),
             logoView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             logoView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             
-            loginButton.heightAnchor.constraint(equalToConstant: Constants.buttonHeight),
-            loginButton.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: Constants.horizontalInset),
-            loginButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -Constants.horizontalInset),
-            loginButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -Constants.buttonBottomInset),
+            loginButton.heightAnchor.constraint(equalToConstant: AuthConstants.buttonHeight),
+            loginButton.leadingAnchor.constraint(equalTo: view.leadingAnchor,
+                                                 constant: AuthConstants.horizontalInset),
+            loginButton.trailingAnchor.constraint(equalTo: view.trailingAnchor,
+                                                  constant: -AuthConstants.horizontalInset),
+            loginButton.bottomAnchor.constraint(equalTo: view.bottomAnchor,
+                                                constant: -AuthConstants.buttonBottomInset),
             loginButton.centerXAnchor.constraint(equalTo: view.centerXAnchor)
         ])
     }
@@ -95,7 +105,7 @@ extension AuthViewController: WebViewViewControllerDelegate {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             OAuth2Service.shared.fetchAuthToken(code: code) { result in
                 DispatchQueue.main.async {
-                    guard let self = self else { return }
+                    guard let self else { return }
                     
                     switch result {
                     case .success(let token):
@@ -134,7 +144,7 @@ extension AuthViewController: WebViewViewControllerDelegate {
         
         endAuthProcess()
         DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             self.delegate?.authViewController(self, didAuthenticateWithToken: token)
             self.dismiss(animated: true)
         }

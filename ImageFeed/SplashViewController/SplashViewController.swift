@@ -7,6 +7,16 @@
 
 import UIKit
 
+// MARK: - Constants
+private enum SplashConstants {
+    static let logoSize = CGSize(width: 75, height: 78)
+    static let authCheckDelay: TimeInterval = 1.0
+    
+    enum Images {
+        static let launchScreen = "LauchScreen"
+    }
+}
+
 final class SplashViewController: UIViewController {
     
     // MARK: - Properties
@@ -16,7 +26,7 @@ final class SplashViewController: UIViewController {
     // MARK: - UI Elements
     private lazy var logoImageView: UIImageView = {
         let imageView = UIImageView()
-        imageView.image = UIImage(named: "LauchScreen")
+        imageView.image = UIImage(named: SplashConstants.Images.launchScreen)
         imageView.contentMode = .scaleAspectFit
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.accessibilityIdentifier = "splashLogo"
@@ -47,15 +57,17 @@ final class SplashViewController: UIViewController {
     
     private func setupConstraints() {
         NSLayoutConstraint.activate([
-            logoImageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            logoImageView.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+            logoImageView.centerXAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerXAnchor),
+            logoImageView.centerYAnchor.constraint(equalTo: view.safeAreaLayoutGuide.centerYAnchor),
+            logoImageView.widthAnchor.constraint(equalToConstant: SplashConstants.logoSize.width),
+            logoImageView.heightAnchor.constraint(equalToConstant: SplashConstants.logoSize.height)
         ])
     }
     
     // MARK: - Auth Flow
     private func checkAuthStatus() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            guard let self = self else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + SplashConstants.authCheckDelay) { [weak self] in
+            guard let self else { return }
             
             if let token = self.storage.token, !token.isEmpty {
                 self.switchToTabBarController()
@@ -100,11 +112,11 @@ final class SplashViewController: UIViewController {
 extension SplashViewController: AuthViewControllerDelegate {
     func authViewController(_ vc: AuthViewController, didAuthenticateWithToken token: String) {
         DispatchQueue.main.async { [weak self] in
-            self?.switchToTabBarController() // Просто переключаемся на таб-бар
+            self?.switchToTabBarController()
         }
     }
     
     func authViewControllerDidCancel(_ vc: AuthViewController) {
-        dismiss(animated: true) // Здесь оставляем dismiss, так как это единственное действие
+        dismiss(animated: true)
     }
 }

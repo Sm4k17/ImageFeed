@@ -12,91 +12,108 @@ final class OAuth2TokenStorage {
     
     // MARK: - Singleton
     static let shared = OAuth2TokenStorage()
+    private init() {
+        debugPrint("OAuth2TokenStorage инициализирован")
+    }
     
-    // MARK: - Private Properties
-    private let service = KeychainConfig.serviceName
-    private let account = KeychainConfig.tokenAccount
+    // MARK: - Keychain Configuration
+    private enum KeychainConfig {
+        static let serviceName = "ru.yandex.practicum.ImageF8eed"
+        static let tokenAccount = "OAuth2Token"
+        static let accessible = kSecAttrAccessibleAfterFirstUnlock
+    }
     
     // MARK: - Public Properties
     var token: String? {
-        get {
-            var query = baseQuery()
-            query[kSecMatchLimit as String] = kSecMatchLimitOne
-            query[kSecReturnAttributes as String] = kCFBooleanTrue
-            query[kSecReturnData as String] = kCFBooleanTrue
-            
-            var item: CFTypeRef?
-            let status = SecItemCopyMatching(query as CFDictionary, &item)
-            
-            guard status == errSecSuccess,
-                  let existingItem = item as? [String: Any],
-                  let tokenData = existingItem[kSecValueData as String] as? Data,
-                  let retrievedToken = String(data: tokenData, encoding: .utf8) else {
-                print("No token found in Keychain")
-                return nil
-            }
-            
-            print("Retrieved token from Keychain: \(retrievedToken)")
-            return retrievedToken
-        }
-        set {
-            if let tokenToStore = newValue {
-                print("Storing new token in Keychain")
-                add(token: tokenToStore)
-            } else {
-                print("Removing token from Keychain")
-                delete()
-            }
-        }
+        get { retrieveToken() }
+        set { updateToken(newValue) }
     }
     
     // MARK: - Keychain Operations
-    
-    // MARK: Base Query
     private func baseQuery() -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
+            kSecAttrService as String: KeychainConfig.serviceName,
+            kSecAttrAccount as String: KeychainConfig.tokenAccount
         ]
     }
     
-    // MARK: Add Token
-    private func add(token: String) {
-        delete() // Удаляем старый токен перед добавлением нового
+    private func retrieveToken() -> String? {
+        var query = baseQuery()
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        query[kSecReturnAttributes as String] = kCFBooleanTrue
+        query[kSecReturnData as String] = kCFBooleanTrue
+        
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        
+        guard status == errSecSuccess,
+              let existingItem = item as? [String: Any],
+              let tokenData = existingItem[kSecValueData as String] as? Data,
+              let token = String(data: tokenData, encoding: .utf8) else {
+            debugPrint("Токен не найден в Keychain. Статус: \(status.message)")
+            return nil
+        }
+        
+        debugPrint("Токен успешно получен из Keychain")
+        return token
+    }
+    
+    private func updateToken(_ newToken: String?) {
+        if let token = newToken {
+            saveToken(token)
+        } else {
+            removeToken()
+        }
+    }
+    
+    private func saveToken(_ token: String) {
+        removeToken() // Удаляем предыдущий токен
         
         guard let tokenData = token.data(using: .utf8) else {
-            print("Failed to convert token to Data")
+            debugPrint("Ошибка преобразования токена в Data")
             return
         }
         
         var query = baseQuery()
         query[kSecValueData as String] = tokenData
-        query[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        query[kSecAttrAccessible as String] = KeychainConfig.accessible
         
         let status = SecItemAdd(query as CFDictionary, nil)
-        if status != errSecSuccess {
-            print("Error saving token to Keychain: \(status)")
+        if status == errSecSuccess {
+            debugPrint("Токен успешно сохранен в Keychain")
+        } else {
+            debugPrint("Ошибка сохранения токена в Keychain: \(status.message)")
         }
     }
     
-    // MARK: Delete Token
-    private func delete() {
+    private func removeToken() {
         let query = baseQuery()
         let status = SecItemDelete(query as CFDictionary)
         
-        if status == errSecSuccess {
-            print("Token successfully deleted from Keychain")
-        } else if status == errSecItemNotFound {
-            print("No token found to delete")
-        } else {
-            print("Error deleting token from Keychain: \(status)")
+        switch status {
+        case errSecSuccess:
+            debugPrint("Токен успешно удален из Keychain")
+        case errSecItemNotFound:
+            debugPrint("Токен не найден для удаления")
+        default:
+            debugPrint("Ошибка удаления токена: \(status.message)")
         }
     }
     
-    // MARK: - Debug Helpers
-    func printKeychainStatus() {
-        let status = token == nil ? "No token" : "Token exists"
-        print("Keychain status: \(status)")
+    // MARK: - Debug
+    func logKeychainStatus() {
+        let status = token != nil ? "Токен существует" : "Токен отсутствует"
+        debugPrint("Статус Keychain: \(status)")
+    }
+}
+
+// MARK: - Keychain Error Handling
+extension OSStatus {
+    var message: String {
+        if let message = SecCopyErrorMessageString(self, nil) as String? {
+            return message
+        }
+        return "Неизвестная ошибка Keychain (\(self))"
     }
 }

@@ -7,27 +7,28 @@
 
 import UIKit
 
+// MARK: - Constants
+private enum ImagesListConstants {
+    static let defaultCellHeight: CGFloat = 200
+    static let tableViewContentInset = UIEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)
+    static let imageInsets = UIEdgeInsets(top: 4, left: 16, bottom: 4, right: 16)
+    static let photosCount = 20
+    
+    static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateStyle = .long
+        formatter.timeStyle = .none
+        return formatter
+    }()
+}
+
+// MARK: - ImagesListViewController
 final class ImagesListViewController: UIViewController {
     // MARK: - Properties
     private let currentDate = Date()
     private var photosName = [String]()
     private var imageSizes = [CGSize]()
-    
-    // MARK: - Constants
-    private enum Constants {
-        static let defaultCellHeight: CGFloat = 200
-        static let tableViewContentInset = UIEdgeInsets(top: 12, left: 0, bottom: 12, right: 0)
-        static let imageInsets = UIEdgeInsets(top: 4, left: 16, bottom: 4, right: 16)
-        static let photosCount = 20
-        
-        static let dateFormatter: DateFormatter = {
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "ru_RU")
-            formatter.dateStyle = .long
-            formatter.timeStyle = .none
-            return formatter
-        }()
-    }
     
     // MARK: - UI Elements
     private lazy var tableView: UITableView = {
@@ -37,21 +38,22 @@ final class ImagesListViewController: UIViewController {
         tableView.delegate = self
         tableView.separatorStyle = .none
         tableView.backgroundColor = .ypBlack
-        tableView.contentInset = Constants.tableViewContentInset
-        tableView.translatesAutoresizingMaskIntoConstraints = false
+        tableView.contentInset = ImagesListConstants.tableViewContentInset
         return tableView
     }()
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupView()
+        setupImagesListUI()
         loadPhotosAndSizes()
     }
     
     // MARK: - Setup Methods
-    private func setupView() {
+    private func setupImagesListUI() {
         view.backgroundColor = .ypBlack
+        
+        tableView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(tableView)
         
         NSLayoutConstraint.activate([
@@ -64,7 +66,7 @@ final class ImagesListViewController: UIViewController {
     
     // MARK: - Private Methods
     private func loadPhotosAndSizes() {
-        photosName = (0..<Constants.photosCount).compactMap { index in
+        photosName = (0..<ImagesListConstants.photosCount).compactMap { index in
             let name = "photo_\(index)"
             guard let image = UIImage(named: name) else {
                 print("Missing image: \(name)")
@@ -76,17 +78,17 @@ final class ImagesListViewController: UIViewController {
     }
     
     private func calculateCellHeight(for imageSize: CGSize) -> CGFloat {
-        let imageViewWidth = tableView.bounds.width - Constants.imageInsets.left - Constants.imageInsets.right
+        let imageViewWidth = tableView.bounds.width - ImagesListConstants.imageInsets.left - ImagesListConstants.imageInsets.right
         let scaleRatio = imageViewWidth / imageSize.width
         let imageViewHeight = imageSize.height * scaleRatio
-        return imageViewHeight + Constants.imageInsets.top + Constants.imageInsets.bottom
+        return imageViewHeight + ImagesListConstants.imageInsets.top + ImagesListConstants.imageInsets.bottom
     }
     
     private func configureCell(_ cell: ImagesListCell, at indexPath: IndexPath) {
         let photoName = photosName[indexPath.row]
         cell.cellImage.image = UIImage(named: photoName)
         
-        let dateString = Constants.dateFormatter.string(from: currentDate)
+        let dateString = ImagesListConstants.dateFormatter.string(from: currentDate)
             .replacingOccurrences(of: " г.", with: "")
             .replacingOccurrences(of: "г.", with: "")
         cell.dateLabel.text = dateString
@@ -94,7 +96,6 @@ final class ImagesListViewController: UIViewController {
         let isLiked = indexPath.row % 2 == 0
         cell.setLikeButtonImage(isLiked: isLiked)
         
-        // Устанавливаем градиент после загрузки изображения
         DispatchQueue.main.async {
             cell.setupGradient()
         }
@@ -124,7 +125,7 @@ extension ImagesListViewController: UITableViewDataSource {
 extension ImagesListViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         guard indexPath.row < imageSizes.count else {
-            return Constants.defaultCellHeight
+            return ImagesListConstants.defaultCellHeight
         }
         return calculateCellHeight(for: imageSizes[indexPath.row])
     }

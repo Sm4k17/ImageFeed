@@ -18,6 +18,10 @@
     <key>CFBundleVersion</key>
     <string>1</string>
 
+    <!-- Добавьте этот ключ для Launch Screen -->
+    <key>UILaunchScreen</key>
+    <dict/>
+
     <!-- Разрешения для Keychain -->
     <key>keychain-access-groups</key>
     <array>
