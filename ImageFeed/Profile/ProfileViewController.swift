@@ -95,7 +95,6 @@ final class ProfileViewController: UIViewController {
     // MARK: - Setup Methods
     private func setupProfileUI() {
         view.backgroundColor = .ypBlack
-        
         [avatarImageView, nameLabel, loginNameLabel, descriptionLabel, logoutButton].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
             view.addSubview($0)

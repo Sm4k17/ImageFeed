@@ -25,7 +25,6 @@ private enum SingleImageConstants {
 final class SingleImageViewController: UIViewController {
     
     // MARK: - Properties
-    
     var image: UIImage? {
         didSet {
             configureImageView()
@@ -33,7 +32,6 @@ final class SingleImageViewController: UIViewController {
     }
     
     // MARK: - UI Elements
-    
     private lazy var scrollView: UIScrollView = {
         let scrollView = UIScrollView()
         scrollView.minimumZoomScale = SingleImageConstants.minZoomScale
@@ -68,7 +66,6 @@ final class SingleImageViewController: UIViewController {
     }()
     
     // MARK: - Lifecycle
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupView()
@@ -77,7 +74,6 @@ final class SingleImageViewController: UIViewController {
     }
     
     // MARK: - Setup Methods
-    
     private func setupView() {
         view.backgroundColor = .ypBlack
         [scrollView, backButton, shareButton].forEach {
@@ -118,7 +114,6 @@ final class SingleImageViewController: UIViewController {
     }
     
     // MARK: - Private Methods
-    
     private func configureImageView() {
         guard isViewLoaded, let image else { return }
         
@@ -148,7 +143,6 @@ final class SingleImageViewController: UIViewController {
     }
     
     // MARK: - Actions
-    
     @objc private func didTapBackButton() {
         dismiss(animated: true)
     }
