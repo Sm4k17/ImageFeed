@@ -100,78 +100,41 @@ final class AuthViewController: UIViewController {
 // MARK: - WebViewViewControllerDelegate
 extension AuthViewController: WebViewViewControllerDelegate {
     func webViewViewController(_ vc: WebViewViewController, didAuthenticateWithCode code: String) {
-        startAuthProcess()
+        vc.dismiss(animated: true)
+        UIBlockingProgressHUD.show()
         
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            OAuth2Service.shared.fetchAuthToken(code: code) { result in
-                DispatchQueue.main.async {
-                    guard let self else { return }
-                    
-                    switch result {
-                    case .success(let token):
-                        self.handleAuthSuccess(token: token)
-                    case .failure(let error):
-                        self.handleAuthFailure(error: error)
-                    }
-                }
+        oauth2Service.fetchAuthToken(code: code) { [weak self] (result: Result<String, Error>) in
+            UIBlockingProgressHUD.dismiss()
+            
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let token):
+                OAuth2TokenStorage.shared.token = token
+                self.delegate?.authViewController(self, didAuthenticateWithToken: token)
+                UIBlockingProgressHUD.succeed()
+                
+            case .failure(let error):
+                self.showAuthError(error)
+                UIBlockingProgressHUD.failed()
             }
         }
     }
     
     func webViewViewControllerDidCancel(_ vc: WebViewViewController) {
-        handleAuthCancellation()
+        vc.dismiss(animated: true)
+        UIBlockingProgressHUD.dismiss()
     }
     
     // MARK: - Private Methods
-    private func startAuthProcess() {
-        DispatchQueue.main.async {
-            self.loginButton.isEnabled = false
-            self.loginButton.alpha = 0.5
-        }
-    }
-    
-    private func endAuthProcess() {
-        DispatchQueue.main.async {
-            self.loginButton.isEnabled = true
-            self.loginButton.alpha = 1.0
-        }
-    }
-    
-    private func handleAuthSuccess(token: String) {
-        DispatchQueue.global(qos: .utility).async {
-            OAuth2TokenStorage.shared.token = token
-        }
-        
-        endAuthProcess()
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.delegate?.authViewController(self, didAuthenticateWithToken: token)
-            self.dismiss(animated: true)
-        }
-    }
-    
-    private func handleAuthFailure(error: Error) {
-        endAuthProcess()
-        DispatchQueue.main.async { [weak self] in
-            self?.showAuthError(error)
-            self?.dismiss(animated: true)
-        }
-    }
-    
-    private func handleAuthCancellation() {
-        endAuthProcess()
-        DispatchQueue.main.async { [weak self] in
-            self?.dismiss(animated: true)
-        }
-    }
-    
     private func showAuthError(_ error: Error) {
         let alert = UIAlertController(
-            title: "Ошибка авторизации",
-            message: error.localizedDescription,
+            title: "Что-то пошло не так(",
+            message: "Не удалось войти в систему",
             preferredStyle: .alert
         )
         alert.addAction(UIAlertAction(title: "OK", style: .default))
         present(alert, animated: true)
+        print("Auth error occurred: \(error)")
     }
 }

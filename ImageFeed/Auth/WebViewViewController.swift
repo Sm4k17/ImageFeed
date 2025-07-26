@@ -104,6 +104,23 @@ final class WebViewViewController: UIViewController {
         ])
     }
     
+    func cleanWebViewData() {
+        // Очистка куков (HTTPCookieStorage)
+        HTTPCookieStorage.shared.removeCookies(since: Date.distantPast)
+        
+        // Очистка кеша и данных WKWebView
+        let dataStore = WKWebsiteDataStore.default()
+        dataStore.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { records in
+            dataStore.removeData(
+                ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+                for: records,
+                completionHandler: {
+                    print("Все данные WKWebView (кеш, куки, localStorage) очищены")
+                }
+            )
+        }
+    }
+    
     // MARK: - Progress Observation
     private func setupProgressObserver() {
         webView.addObserver(

@@ -159,16 +159,17 @@ final class ProfileViewController: UIViewController {
     }
     
     private func performLogout() {
+        // 1. Удаление токена
         OAuth2TokenStorage.shared.token = nil
         
-        guard OAuth2TokenStorage.shared.token == nil else {
-            print("Failed to delete token")
-            return
-        }
+        // 2. Очистка данных WebView
+        let webViewVC = WebViewViewController()
+        webViewVC.cleanWebViewData()
         
+        // 3. Переход на экран авторизации
         DispatchQueue.main.async {
             guard let window = UIApplication.shared.windows.first else {
-                print("No window found")
+                print("Ошибка: не найден UIWindow")
                 return
             }
             
