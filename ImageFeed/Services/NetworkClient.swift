@@ -101,6 +101,25 @@ final class NetworkClient {
         return task
     }
     
+    func fetch(request: URLRequest, completion: @escaping (Result<Data, Error>) -> Void) -> URLSessionTask {
+        let task = session.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let data = data else {
+                completion(.failure(NetworkError.invalidData))
+                return
+            }
+            
+            completion(.success(data))
+        }
+        
+        task.resume()
+        return task
+    }
+    
     // MARK: - Private Methods
     private func makeTokenRequest(code: String) -> URLRequest? {
         guard let url = URL(string: Constants.unsplashTokenURLString) else {

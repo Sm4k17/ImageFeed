@@ -23,13 +23,13 @@ private enum ProfileConstants {
     }
     
     enum Texts {
-        static let name = "Екатерина Новикова"
-        static let login = "@ekaterina_nov"
-        static let description = "Hello, world!"
         static let logoutTitle = "Выход"
         static let logoutMessage = "Вы уверены, что хотите выйти?"
         static let logoutConfirm = "Да"
         static let logoutCancel = "Нет"
+        static let defaultName = "Имя Фамилия"
+        static let defaultLogin = "@username"
+        static let defaultBio = "Нет описания"
     }
 }
 
@@ -49,7 +49,7 @@ final class ProfileViewController: UIViewController {
     
     private lazy var nameLabel: UILabel = {
         let label = UILabel()
-        label.text = ProfileConstants.Texts.name
+        label.text = ProfileConstants.Texts.defaultName
         label.font = .systemFont(ofSize: ProfileConstants.nameFontSize, weight: .bold)
         label.textColor = .ypWhite
         label.accessibilityIdentifier = "nameLabel"
@@ -58,7 +58,7 @@ final class ProfileViewController: UIViewController {
     
     private lazy var loginNameLabel: UILabel = {
         let label = UILabel()
-        label.text = ProfileConstants.Texts.login
+        label.text = ProfileConstants.Texts.defaultLogin
         label.font = .systemFont(ofSize: ProfileConstants.secondaryFontSize)
         label.textColor = .ypGray
         label.accessibilityIdentifier = "loginNameLabel"
@@ -67,7 +67,7 @@ final class ProfileViewController: UIViewController {
     
     private lazy var descriptionLabel: UILabel = {
         let label = UILabel()
-        label.text = ProfileConstants.Texts.description
+        label.text = ProfileConstants.Texts.defaultBio
         label.font = .systemFont(ofSize: ProfileConstants.secondaryFontSize)
         label.textColor = .ypWhite
         label.accessibilityIdentifier = "descriptionLabel"
@@ -78,18 +78,23 @@ final class ProfileViewController: UIViewController {
     private lazy var logoutButton: UIButton = {
         let button = UIButton(type: .system)
         button.setImage(UIImage(named: ProfileConstants.Images.logout) ??
-                       UIImage(systemName: "rectangle.portrait.and.arrow.right"),
-                       for: .normal)
+                        UIImage(systemName: "rectangle.portrait.and.arrow.right"),
+                        for: .normal)
         button.tintColor = .ypRed
         button.accessibilityIdentifier = "logoutButton"
         button.addTarget(self, action: #selector(didTapLogoutButton), for: .touchUpInside)
         return button
     }()
     
+    // MARK: - Properties
+    private let profileService = ProfileService.shared
+    private let tokenStorage = OAuth2TokenStorage.shared
+    
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         setupProfileUI()
+        updateProfileDetails()
     }
     
     // MARK: - Setup Methods
@@ -107,38 +112,60 @@ final class ProfileViewController: UIViewController {
         NSLayoutConstraint.activate([
             // Avatar
             avatarImageView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor,
-                                               constant: ProfileConstants.largeInset),
+                                                 constant: ProfileConstants.largeInset),
             avatarImageView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor,
-                                                   constant: ProfileConstants.mediumInset),
+                                                     constant: ProfileConstants.mediumInset),
             avatarImageView.widthAnchor.constraint(equalToConstant: ProfileConstants.avatarSize),
             avatarImageView.heightAnchor.constraint(equalTo: avatarImageView.widthAnchor),
             
             // Name
             nameLabel.topAnchor.constraint(equalTo: avatarImageView.bottomAnchor,
-                                         constant: ProfileConstants.smallInset),
+                                           constant: ProfileConstants.smallInset),
             nameLabel.leadingAnchor.constraint(equalTo: avatarImageView.leadingAnchor),
             nameLabel.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor,
-                                              constant: -ProfileConstants.mediumInset),
+                                                constant: -ProfileConstants.mediumInset),
             
             // Login
             loginNameLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor,
-                                              constant: ProfileConstants.smallInset),
+                                                constant: ProfileConstants.smallInset),
             loginNameLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
             loginNameLabel.trailingAnchor.constraint(equalTo: nameLabel.trailingAnchor),
             
             // Description
             descriptionLabel.topAnchor.constraint(equalTo: loginNameLabel.bottomAnchor,
-                                                constant: ProfileConstants.smallInset),
+                                                  constant: ProfileConstants.smallInset),
             descriptionLabel.leadingAnchor.constraint(equalTo: loginNameLabel.leadingAnchor),
             descriptionLabel.trailingAnchor.constraint(equalTo: loginNameLabel.trailingAnchor),
             
             // Logout Button
             logoutButton.centerYAnchor.constraint(equalTo: avatarImageView.centerYAnchor),
             logoutButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor,
-                                                 constant: -ProfileConstants.mediumInset),
+                                                   constant: -ProfileConstants.mediumInset),
             logoutButton.widthAnchor.constraint(equalToConstant: ProfileConstants.buttonSize),
             logoutButton.heightAnchor.constraint(equalTo: logoutButton.widthAnchor)
         ])
+    }
+    
+    // MARK: - Private Methods
+    private func updateProfileDetails() {
+        guard let profile = profileService.profile else {
+            setDefaultProfileValues()
+            return
+        }
+        updateProfileUI(with: profile)
+    }
+    
+    private func updateProfileUI(with profile: Profile) {
+        nameLabel.text = profile.name.isEmpty ? ProfileConstants.Texts.defaultName : profile.name
+        loginNameLabel.text = profile.loginName
+        descriptionLabel.text = profile.bio ?? ProfileConstants.Texts.defaultBio
+        print("Текущий профиль: \(profile)")
+    }
+    
+    private func setDefaultProfileValues() {
+        nameLabel.text = ProfileConstants.Texts.defaultName
+        loginNameLabel.text = ProfileConstants.Texts.defaultLogin
+        descriptionLabel.text = ProfileConstants.Texts.defaultBio
     }
     
     // MARK: - Actions

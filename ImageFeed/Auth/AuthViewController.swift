@@ -123,7 +123,7 @@ extension AuthViewController: WebViewViewControllerDelegate {
     
     func webViewViewControllerDidCancel(_ vc: WebViewViewController) {
         vc.dismiss(animated: true)
-        UIBlockingProgressHUD.dismiss()
+        UIBlockingProgressHUD.failed()
     }
     
     // MARK: - Private Methods

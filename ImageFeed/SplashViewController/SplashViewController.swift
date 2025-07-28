@@ -21,6 +21,7 @@ final class SplashViewController: UIViewController {
     
     // MARK: - Properties
     private let storage = OAuth2TokenStorage.shared
+    private let profileService = ProfileService.shared
     weak var authViewController: AuthViewController?
     
     // MARK: - UI Elements
@@ -70,7 +71,7 @@ final class SplashViewController: UIViewController {
             guard let self else { return }
             
             if let token = self.storage.token, !token.isEmpty {
-                self.switchToTabBarController()
+                self.fetchProfileAndSwitch(token: token)
             } else {
                 self.showAuthViewController()
             }
@@ -87,6 +88,20 @@ final class SplashViewController: UIViewController {
         navigationController.isNavigationBarHidden = true
         
         present(navigationController, animated: true)
+    }
+    
+    private func fetchProfileAndSwitch(token: String) {
+        profileService.fetchProfile(token) { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self?.switchToTabBarController()
+                case .failure(let error):
+                    print("Ошибка загрузки профиля: \(error.localizedDescription)")
+                    self?.switchToTabBarController()
+                }
+            }
+        }
     }
     
     private func switchToTabBarController() {
@@ -112,7 +127,7 @@ final class SplashViewController: UIViewController {
 extension SplashViewController: AuthViewControllerDelegate {
     func authViewController(_ vc: AuthViewController, didAuthenticateWithToken token: String) {
         DispatchQueue.main.async { [weak self] in
-            self?.switchToTabBarController()
+            self?.fetchProfileAndSwitch(token: token)
         }
     }
     
