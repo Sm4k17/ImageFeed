@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import Kingfisher
 
 // MARK: - Constants
 private enum ProfileConstants {
@@ -44,6 +45,8 @@ final class ProfileViewController: UIViewController {
             imageView.tintColor = .ypGray
             return image
         }()
+        imageView.layer.cornerRadius = ProfileConstants.avatarSize / 2
+        imageView.clipsToBounds = true
         return imageView
     }()
     
@@ -89,12 +92,15 @@ final class ProfileViewController: UIViewController {
     // MARK: - Properties
     private let profileService = ProfileService.shared
     private let tokenStorage = OAuth2TokenStorage.shared
+    private var profileImageServiceObserver: NSObjectProtocol?
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         setupProfileUI()
         updateProfileDetails()
+        setupNotificationObserver()
+        updateAvatar()
     }
     
     // MARK: - Setup Methods
@@ -110,7 +116,6 @@ final class ProfileViewController: UIViewController {
     
     private func setupConstraints() {
         NSLayoutConstraint.activate([
-            // Avatar
             avatarImageView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor,
                                                  constant: ProfileConstants.largeInset),
             avatarImageView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor,
@@ -118,32 +123,39 @@ final class ProfileViewController: UIViewController {
             avatarImageView.widthAnchor.constraint(equalToConstant: ProfileConstants.avatarSize),
             avatarImageView.heightAnchor.constraint(equalTo: avatarImageView.widthAnchor),
             
-            // Name
             nameLabel.topAnchor.constraint(equalTo: avatarImageView.bottomAnchor,
                                            constant: ProfileConstants.smallInset),
             nameLabel.leadingAnchor.constraint(equalTo: avatarImageView.leadingAnchor),
             nameLabel.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor,
                                                 constant: -ProfileConstants.mediumInset),
             
-            // Login
             loginNameLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor,
                                                 constant: ProfileConstants.smallInset),
             loginNameLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
             loginNameLabel.trailingAnchor.constraint(equalTo: nameLabel.trailingAnchor),
             
-            // Description
             descriptionLabel.topAnchor.constraint(equalTo: loginNameLabel.bottomAnchor,
                                                   constant: ProfileConstants.smallInset),
             descriptionLabel.leadingAnchor.constraint(equalTo: loginNameLabel.leadingAnchor),
             descriptionLabel.trailingAnchor.constraint(equalTo: loginNameLabel.trailingAnchor),
             
-            // Logout Button
             logoutButton.centerYAnchor.constraint(equalTo: avatarImageView.centerYAnchor),
             logoutButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor,
                                                    constant: -ProfileConstants.mediumInset),
             logoutButton.widthAnchor.constraint(equalToConstant: ProfileConstants.buttonSize),
             logoutButton.heightAnchor.constraint(equalTo: logoutButton.widthAnchor)
         ])
+    }
+    
+    private func setupNotificationObserver() {
+        profileImageServiceObserver = NotificationCenter.default
+            .addObserver(
+                forName: ProfileImageService.didChangeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.updateAvatar()
+            }
     }
     
     // MARK: - Private Methods
@@ -159,13 +171,35 @@ final class ProfileViewController: UIViewController {
         nameLabel.text = profile.name.isEmpty ? ProfileConstants.Texts.defaultName : profile.name
         loginNameLabel.text = profile.loginName
         descriptionLabel.text = profile.bio ?? ProfileConstants.Texts.defaultBio
-        print("Текущий профиль: \(profile)")
     }
     
     private func setDefaultProfileValues() {
         nameLabel.text = ProfileConstants.Texts.defaultName
         loginNameLabel.text = ProfileConstants.Texts.defaultLogin
         descriptionLabel.text = ProfileConstants.Texts.defaultBio
+    }
+    
+    private func updateAvatar() {
+        guard let profileImageURL = ProfileImageService.shared.avatarURL,
+              let url = URL(string: profileImageURL) else { return }
+        
+        let targetSize = CGSize(
+            width: ProfileConstants.avatarSize * UIScreen.main.scale,
+            height: ProfileConstants.avatarSize * UIScreen.main.scale
+        )
+        
+        let processor = DownsamplingImageProcessor(size: targetSize)
+        |> RoundCornerImageProcessor(cornerRadius: ProfileConstants.avatarSize / 2)
+        
+        avatarImageView.kf.setImage(
+            with: url,
+            placeholder: UIImage(named: ProfileConstants.Images.avatar),
+            options: [
+                .processor(processor),
+                .scaleFactor(UIScreen.main.scale),
+                .cacheOriginalImage
+            ]
+        )
     }
     
     // MARK: - Actions
@@ -186,14 +220,12 @@ final class ProfileViewController: UIViewController {
     }
     
     private func performLogout() {
-        // 1. Удаление токена
         OAuth2TokenStorage.shared.token = nil
+        ProfileImageService.shared.clearAvatarURL()
         
-        // 2. Очистка данных WebView
         let webViewVC = WebViewViewController()
         webViewVC.cleanWebViewData()
         
-        // 3. Переход на экран авторизации
         DispatchQueue.main.async {
             guard let window = UIApplication.shared.windows.first else {
                 print("Ошибка: не найден UIWindow")
@@ -209,6 +241,13 @@ final class ProfileViewController: UIViewController {
                 options: .transitionCrossDissolve,
                 animations: nil
             )
+        }
+    }
+    
+    // MARK: - Deinit
+    deinit {
+        if let observer = profileImageServiceObserver {
+            NotificationCenter.default.removeObserver(observer)
         }
     }
 }

@@ -22,6 +22,7 @@ final class SplashViewController: UIViewController {
     // MARK: - Properties
     private let storage = OAuth2TokenStorage.shared
     private let profileService = ProfileService.shared
+    private let profileImageService = ProfileImageService.shared
     weak var authViewController: AuthViewController?
     
     // MARK: - UI Elements
@@ -94,7 +95,9 @@ final class SplashViewController: UIViewController {
         profileService.fetchProfile(token) { [weak self] result in
             DispatchQueue.main.async {
                 switch result {
-                case .success:
+                case .success(let profile):
+                    // Основное изменение: запуск загрузки аватарки без ожидания завершения
+                    self?.profileImageService.fetchProfileImageURL(username: profile.username) { _ in }
                     self?.switchToTabBarController()
                 case .failure(let error):
                     print("Ошибка загрузки профиля: \(error.localizedDescription)")

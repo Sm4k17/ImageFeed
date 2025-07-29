@@ -21,32 +21,27 @@ final class ProfileService {
     // MARK: - Public Methods
     func fetchProfile(_ token: String, completion: @escaping (Result<Profile, Error>) -> Void) {
         assert(Thread.isMainThread)
-        // Отменяем предыдущий запрос
         currentTask?.cancel()
-        // Создаем запрос
+        
         guard let request = makeProfileRequest(token: token) else {
-            completion(.failure(NetworkClient.NetworkError.invalidRequest))
+            let error = NetworkClient.NetworkError.invalidRequest
+            print("[ProfileService][fetchProfile] Invalid request, token: \(token)")
+            completion(.failure(error))
             return
         }
-        // Выполняем запрос через NetworkClient
-        currentTask = networkClient.fetch(request: request) { [weak self] result in
+        
+        currentTask = networkClient.objectTask(for: request) { [weak self] (result: Result<ProfileResult, Error>) in
             guard let self = self else { return }
             
-            var profileResult: Result<Profile, Error>
+            let profileResult: Result<Profile, Error>
             
             switch result {
-            case .success(let data):
-                do {
-                    let decoder = JSONDecoder()
-                    decoder.keyDecodingStrategy = .convertFromSnakeCase
-                    let decodedProfile = try decoder.decode(ProfileResult.self, from: data)
-                    let profile = Profile(from: decodedProfile)
-                    self.profile = profile
-                    profileResult = .success(profile)
-                } catch {
-                    profileResult = .failure(error)
-                }
+            case .success(let profileResultData):
+                let profile = Profile(from: profileResultData)
+                self.profile = profile
+                profileResult = .success(profile)
             case .failure(let error):
+                print("[ProfileService][fetchProfile] Failed with error: \(error.localizedDescription), token: \(token)")
                 profileResult = .failure(error)
             }
             

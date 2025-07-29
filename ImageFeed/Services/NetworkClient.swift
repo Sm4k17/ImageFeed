@@ -82,38 +82,95 @@ final class NetworkClient {
         
         logRequest(request)
         
-        let task = session.dataTask(with: request) { [weak self] data, response, error in
+        let task = objectTask(for: request) { [weak self] (result: Result<OAuthTokenResponse, Error>) in
             guard let self = self else { return }
             
-            let result = self.processTokenResponse(
-                data: data,
-                response: response,
-                error: error
-            )
+            let tokenResult: Result<String, Error>
+            
+            switch result {
+            case .success(let response):
+                self.logSuccess("Token decoded successfully")
+                tokenResult = .success(response.accessToken)
+            case .failure(let error):
+                self.logDecodingError(error)
+                tokenResult = .failure(error)
+            }
             
             DispatchQueue.main.async {
-                completion(result)
+                completion(tokenResult)
             }
         }
         
         currentTask = task
-        task.resume()
         return task
     }
     
     func fetch(request: URLRequest, completion: @escaping (Result<Data, Error>) -> Void) -> URLSessionTask {
         let task = session.dataTask(with: request) { data, response, error in
             if let error = error {
+                let nsError = error as NSError
+                print("[NetworkClient][dataTask] Request failed: \(nsError.domain) - код \(nsError.code), URL: \(request.url?.absoluteString ?? "nil")")
                 completion(.failure(error))
                 return
             }
             
             guard let data = data else {
+                print("[NetworkClient][dataTask] Invalid data received, URL: \(request.url?.absoluteString ?? "nil")")
                 completion(.failure(NetworkError.invalidData))
                 return
             }
             
+            if let httpResponse = response as? HTTPURLResponse, !(200..<300).contains(httpResponse.statusCode) {
+                print("[NetworkClient][dataTask] Server error: код \(httpResponse.statusCode), URL: \(request.url?.absoluteString ?? "nil")")
+            }
+            
             completion(.success(data))
+        }
+        
+        task.resume()
+        return task
+    }
+
+    func objectTask<T: Decodable>(
+        for request: URLRequest,
+        completion: @escaping (Result<T, Error>) -> Void
+    ) -> URLSessionTask {
+        let task = session.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
+            let result: Result<T, Error>
+            
+            if let error = error {
+                let mappedError = self.mapError(error)
+                print("[NetworkClient][objectTask] Request failed: \(mappedError.localizedDescription), URL: \(request.url?.absoluteString ?? "nil")")
+                result = .failure(mappedError)
+            } else if let httpResponse = response as? HTTPURLResponse,
+                      !(200..<300).contains(httpResponse.statusCode) {
+                print("[NetworkClient][objectTask] Server error: код \(httpResponse.statusCode), URL: \(request.url?.absoluteString ?? "nil")")
+                result = .failure(NetworkError.codeError(httpResponse.statusCode))
+            } else if let data = data {
+                do {
+                    let decodedObject = try self.decoder.decode(T.self, from: data)
+                    result = .success(decodedObject)
+                } catch {
+                    let dataString = String(data: data, encoding: .utf8) ?? "нечитаемые данные"
+                    print("""
+                    [NetworkClient][objectTask] Decoding failed:
+                    - Error: \(error.localizedDescription)
+                    - Type: \(T.self)
+                    - Data: \(dataString)
+                    - URL: \(request.url?.absoluteString ?? "nil")
+                    """)
+                    result = .failure(error)
+                }
+            } else {
+                print("[NetworkClient][objectTask] No data received, URL: \(request.url?.absoluteString ?? "nil")")
+                result = .failure(NetworkError.invalidData)
+            }
+            
+            DispatchQueue.main.async {
+                completion(result)
+            }
         }
         
         task.resume()

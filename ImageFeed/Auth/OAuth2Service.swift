@@ -23,38 +23,35 @@ final class OAuth2Service {
     ) {
         assert(Thread.isMainThread)
         
-        // 1. Гарантируем, что `completion` вызывается только один раз
         var isCompletionCalled = false
         let safeCompletion: (Result<String, Error>) -> Void = { result in
             guard !isCompletionCalled else { return }
             isCompletionCalled = true
+            
+            if case .failure(let error) = result {
+                print("[OAuth2Service][fetchAuthToken] Failed with error: \(error.localizedDescription), code: \(code)")
+            }
+            
             completion(result)
         }
         
-        // 2. Если уже есть активный запрос с таким же `code` → отменяем дубликат
         if let lastCode = lastCode, lastCode == code, currentTask != nil {
             safeCompletion(.failure(NetworkClient.NetworkError.duplicateRequest))
             return
         }
         
-        // 3. Отменяем предыдущий запрос (если был)
         currentTask?.cancel()
         currentTask = nil
-        
-        // 4. Сохраняем новый `code`
         lastCode = code
         
-        // 5. Выполняем запрос и сохраняем задачу
         currentTask = networkClient.fetchOAuthToken(code: code) { [weak self] result in
             DispatchQueue.main.async {
-                // 6. Очищаем состояние после завершения
                 self?.currentTask = nil
                 self?.lastCode = nil
                 safeCompletion(result)
             }
         }
         
-        // 7. Если не удалось создать задачу → возвращаем ошибку
         if currentTask == nil {
             safeCompletion(.failure(NetworkClient.NetworkError.invalidRequest))
         }
