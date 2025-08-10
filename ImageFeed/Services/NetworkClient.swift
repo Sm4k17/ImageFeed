@@ -19,9 +19,12 @@ final class NetworkClient {
         case cancelled
         case noNetworkConnection
         case timeout
+        case duplicateRequest
         
         var errorDescription: String? {
             switch self {
+            case .duplicateRequest:
+                return "Duplicate request detected"
             case .invalidRequest:
                 return "Invalid request parameters"
             case .codeError(let code):
@@ -56,6 +59,7 @@ final class NetworkClient {
     private lazy var decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.dateDecodingStrategy = .secondsSince1970
         return decoder
     }()
     
@@ -68,31 +72,109 @@ final class NetworkClient {
     func fetchOAuthToken(
         code: String,
         completion: @escaping (Result<String, Error>) -> Void
-    ) {
+    ) -> URLSessionTask? {
         cancelPendingRequest()
         
         guard let request = makeTokenRequest(code: code) else {
             completion(.failure(NetworkError.invalidRequest))
-            return
+            return nil
         }
         
         logRequest(request)
         
-        currentTask = session.dataTask(with: request) { [weak self] data, response, error in
+        let task = objectTask(for: request) { [weak self] (result: Result<OAuthTokenResponse, Error>) in
             guard let self = self else { return }
             
-            let result = self.processTokenResponse(
-                data: data,
-                response: response,
-                error: error
-            )
+            let tokenResult: Result<String, Error>
+            
+            switch result {
+            case .success(let response):
+                self.logSuccess("Token decoded successfully")
+                tokenResult = .success(response.accessToken)
+            case .failure(let error):
+                self.logDecodingError(error)
+                tokenResult = .failure(error)
+            }
+            
+            DispatchQueue.main.async {
+                completion(tokenResult)
+            }
+        }
+        
+        currentTask = task
+        return task
+    }
+    
+    func fetch(request: URLRequest, completion: @escaping (Result<Data, Error>) -> Void) -> URLSessionTask {
+        let task = session.dataTask(with: request) { data, response, error in
+            if let error = error {
+                let nsError = error as NSError
+                print("[NetworkClient][dataTask] Request failed: \(nsError.domain) - код \(nsError.code), URL: \(request.url?.absoluteString ?? "nil")")
+                completion(.failure(error))
+                return
+            }
+            
+            guard let data = data else {
+                print("[NetworkClient][dataTask] Invalid data received, URL: \(request.url?.absoluteString ?? "nil")")
+                completion(.failure(NetworkError.invalidData))
+                return
+            }
+            
+            if let httpResponse = response as? HTTPURLResponse, !(200..<300).contains(httpResponse.statusCode) {
+                print("[NetworkClient][dataTask] Server error: код \(httpResponse.statusCode), URL: \(request.url?.absoluteString ?? "nil")")
+            }
+            
+            completion(.success(data))
+        }
+        
+        task.resume()
+        return task
+    }
+
+    func objectTask<T: Decodable>(
+        for request: URLRequest,
+        completion: @escaping (Result<T, Error>) -> Void
+    ) -> URLSessionTask {
+        let task = session.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self else { return }
+            
+            let result: Result<T, Error>
+            
+            if let error = error {
+                let mappedError = self.mapError(error)
+                print("[NetworkClient][objectTask] Request failed: \(mappedError.localizedDescription), URL: \(request.url?.absoluteString ?? "nil")")
+                result = .failure(mappedError)
+            } else if let httpResponse = response as? HTTPURLResponse,
+                      !(200..<300).contains(httpResponse.statusCode) {
+                print("[NetworkClient][objectTask] Server error: код \(httpResponse.statusCode), URL: \(request.url?.absoluteString ?? "nil")")
+                result = .failure(NetworkError.codeError(httpResponse.statusCode))
+            } else if let data = data {
+                do {
+                    let decodedObject = try self.decoder.decode(T.self, from: data)
+                    result = .success(decodedObject)
+                } catch {
+                    let dataString = String(data: data, encoding: .utf8) ?? "нечитаемые данные"
+                    print("""
+                    [NetworkClient][objectTask] Decoding failed:
+                    - Error: \(error.localizedDescription)
+                    - Type: \(T.self)
+                    - Data: \(dataString)
+                    - URL: \(request.url?.absoluteString ?? "nil")
+                    """)
+                    result = .failure(error)
+                }
+            } else {
+                print("[NetworkClient][objectTask] No data received, URL: \(request.url?.absoluteString ?? "nil")")
+                result = .failure(NetworkError.invalidData)
+            }
             
             DispatchQueue.main.async {
                 completion(result)
             }
         }
         
-        currentTask?.resume()
+        task.resume()
+        return task
     }
     
     // MARK: - Private Methods
@@ -156,20 +238,25 @@ final class NetworkClient {
             return .failure(NetworkError.invalidData)
         }
         
-        logResponseData(data)
+        // Логируем сырой JSON перед декодированием
+        if let jsonString = String(data: data, encoding: .utf8) {
+            logDebug("Raw JSON: \(jsonString)")
+        }
         
         do {
             let responseBody = try decoder.decode(OAuthTokenResponse.self, from: data)
-            logSuccess("Token received successfully")
+            logSuccess("Token decoded successfully")
             return .success(responseBody.accessToken)
         } catch let decodingError {
+            logDecodingError(decodingError)
+            
+            // Fallback только если действительно нужно
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let token = json["access_token"] as? String {
-                logWarning("Used fallback token extraction")
+                logWarning("Used fallback token extraction. Decoding error: \(decodingError)")
                 return .success(token)
             }
             
-            logDecodingError(decodingError)
             return .failure(decodingError)
         }
     }
@@ -196,7 +283,7 @@ final class NetworkClient {
     
     // MARK: - Logging Methods
     private func logRequest(_ request: URLRequest) {
-        #if DEBUG
+#if DEBUG
         print("""
         🔧 [Network Request]
         URL: \(request.url?.absoluteString ?? "nil")
@@ -204,31 +291,37 @@ final class NetworkClient {
         Headers: \(request.allHTTPHeaderFields ?? [:])
         Body: \(request.httpBody.flatMap { String(data: $0, encoding: .utf8) } ?? "nil")
         """)
-        #endif
+#endif
+    }
+    
+    private func logDebug(_ message: String) {
+#if DEBUG
+        print("🐛 [Debug] \(message)")
+#endif
     }
     
     private func logResponse(_ response: HTTPURLResponse) {
-        #if DEBUG
+#if DEBUG
         print("""
         🌐 [Network Response]
         Status Code: \(response.statusCode)
         URL: \(response.url?.absoluteString ?? "nil")
         """)
-        #endif
+#endif
     }
     
     private func logResponseData(_ data: Data) {
-        #if DEBUG
+#if DEBUG
         if let jsonString = String(data: data, encoding: .utf8) {
             print("📦 [Response Data]\n\(jsonString)")
         } else {
             print("📦 [Response Data] (binary data, size: \(data.count) bytes)")
         }
-        #endif
+#endif
     }
     
     private func logError(_ error: Error) {
-        #if DEBUG
+#if DEBUG
         let nsError = error as NSError
         print("""
         🛑 [Network Error]
@@ -236,46 +329,46 @@ final class NetworkClient {
         Code: \(nsError.code)
         Description: \(error.localizedDescription)
         """)
-        #endif
+#endif
     }
     
     private func logInvalidResponse() {
-        #if DEBUG
+#if DEBUG
         print("🛑 [Network] Invalid response (not HTTPURLResponse)")
-        #endif
+#endif
     }
     
     private func logInvalidData() {
-        #if DEBUG
+#if DEBUG
         print("🛑 [Network] Response contains no data")
-        #endif
+#endif
     }
     
     private func logInvalidStatusCode(_ code: Int) {
-        #if DEBUG
+#if DEBUG
         print("🛑 [Network] Server returned error status code: \(code)")
-        #endif
+#endif
     }
     
     private func logDecodingError(_ error: Error) {
-        #if DEBUG
+#if DEBUG
         print("""
         🛑 [JSON Decoding Failed]
         Error: \(error.localizedDescription)
         Underlying error: \((error as NSError).userInfo[NSUnderlyingErrorKey] ?? "none")
         """)
-        #endif
+#endif
     }
     
     private func logSuccess(_ message: String) {
-        #if DEBUG
+#if DEBUG
         print("✅ [Network] \(message)")
-        #endif
+#endif
     }
     
     private func logWarning(_ message: String) {
-        #if DEBUG
+#if DEBUG
         print("⚠️ [Network] \(message)")
-        #endif
+#endif
     }
 }

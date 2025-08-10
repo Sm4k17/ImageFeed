@@ -55,15 +55,18 @@ final class WebViewViewController: UIViewController {
         return view
     }()
     
+    // MARK: - Setup Methods
+    private var estimatedProgressObservation: NSKeyValueObservation? // Наблюдатель за прогрессом
+    
     // MARK: - Lifecycle
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        setupProgressObserver()
+        setupProgressObserver() // Настраиваем наблюдение при появлении
     }
     
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        removeProgressObserver()
+        removeProgressObserver() // Удаляем наблюдение при исчезновении
     }
     
     override func viewDidLoad() {
@@ -75,7 +78,7 @@ final class WebViewViewController: UIViewController {
         webView.navigationDelegate = self
     }
     
-    // MARK: - Setup Methods
+    // MARK: - Setup UI
     private func setupWebViewUI() {
         view.backgroundColor = .ypWhite
         [webView, backButton, progressView].forEach {
@@ -104,18 +107,41 @@ final class WebViewViewController: UIViewController {
         ])
     }
     
-    // MARK: - Progress Observation
+    // Очистка данных WebView
+    func cleanWebViewData() {
+        // Очистка куков
+        HTTPCookieStorage.shared.removeCookies(since: Date.distantPast)
+        
+        // Очистка кеша и данных WKWebView
+        let dataStore = WKWebsiteDataStore.default()
+        dataStore.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { records in
+            dataStore.removeData(
+                ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
+                for: records,
+                completionHandler: {
+                    print("Все данные WKWebView (кеш, куки, localStorage) очищены")
+                }
+            )
+        }
+    }
+    
+    // MARK: - Progress Observation (новое KVO API)
     private func setupProgressObserver() {
-        webView.addObserver(
-            self,
-            forKeyPath: #keyPath(WKWebView.estimatedProgress),
-            options: .new,
-            context: nil
-        )
+        // Создаем наблюдение за свойством estimatedProgress с помощью нового API
+        estimatedProgressObservation = webView.observe(
+            \.estimatedProgress, // Ключевой путь к свойству
+            options: [.new] // Нас интересуют только новые значения
+        ) { [weak self] _, _ in
+            // При изменении значения обновляем прогресс
+            guard let self = self else { return }
+            self.updateProgress()
+        }
     }
     
     private func removeProgressObserver() {
-        webView.removeObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress))
+        // Отменяем наблюдение
+        estimatedProgressObservation?.invalidate()
+        estimatedProgressObservation = nil
     }
     
     // MARK: - Auth View Loading
@@ -123,7 +149,7 @@ final class WebViewViewController: UIViewController {
         let unsplashAuthorizeURLString = "https://unsplash.com/oauth/authorize"
         
         guard var urlComponents = URLComponents(string: unsplashAuthorizeURLString) else {
-            print("Failed to create URL components")
+            print("Не удалось создать URL компоненты")
             return
         }
         
@@ -135,7 +161,7 @@ final class WebViewViewController: UIViewController {
         ]
         
         guard let url = urlComponents.url else {
-            print("Failed to create URL from components")
+            print("Не удалось создать URL из компонентов")
             return
         }
         
@@ -146,35 +172,35 @@ final class WebViewViewController: UIViewController {
     // MARK: - Code Extraction
     private func code(from navigationAction: WKNavigationAction) -> String? {
         guard let url = navigationAction.request.url else {
-            print("Failed to get URL from navigation action")
+            print("Не удалось получить URL из navigation action")
             return nil
         }
         
-        // Check for standard redirect URI
+        // Проверка стандартного redirect URI
         if url.absoluteString.hasPrefix(ImageFeed.Constants.redirectURI),
            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
            let codeItem = components.queryItems?.first(where: { $0.name == "code" }) {
-            print("Extracted code from redirect URI: \(codeItem.value ?? "")")
+            print("Извлечен код из redirect URI: \(codeItem.value ?? "")")
             return codeItem.value
         }
         
-        // Check for native URL
+        // Проверка native URL
         if url.absoluteString.contains("unsplash.com/oauth/authorize/native"),
            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
            let codeItem = components.queryItems?.first(where: { $0.name == "code" }) {
-            print("Extracted code from native URL: \(codeItem.value ?? "")")
+            print("Извлечен код из native URL: \(codeItem.value ?? "")")
             return codeItem.value
         }
         
-        // Generic check for code parameter
+        // Общая проверка параметра code
         if url.absoluteString.contains("code="),
            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
            let codeItem = components.queryItems?.first(where: { $0.name == "code" }) {
-            print("Extracted code from generic URL: \(codeItem.value ?? "")")
+            print("Извлечен код из generic URL: \(codeItem.value ?? "")")
             return codeItem.value
         }
         
-        print("No code found in URL: \(url.absoluteString)")
+        print("Код не найден в URL: \(url.absoluteString)")
         return nil
     }
     
@@ -192,20 +218,6 @@ final class WebViewViewController: UIViewController {
     
     private func isProgressComplete(_ progress: Double) -> Bool {
         return fabs(progress - 1.0) <= WebViewConstants.progressComparisonPrecision
-    }
-    
-    // MARK: - KVO Observation
-    override func observeValue(
-        forKeyPath keyPath: String?,
-        of object: Any?,
-        change: [NSKeyValueChangeKey: Any]?,
-        context: UnsafeMutableRawPointer?
-    ) {
-        if keyPath == #keyPath(WKWebView.estimatedProgress) {
-            updateProgress()
-        } else {
-            super.observeValue(forKeyPath: keyPath, of: object, change: change, context: context)
-        }
     }
 }
 
