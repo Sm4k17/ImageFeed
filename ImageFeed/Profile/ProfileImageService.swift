@@ -89,10 +89,10 @@ final class ProfileImageService {
 }
 
 // MARK: - Data Structures
-struct UserResult: Codable {
+struct UserResult: Decodable {
     let profileImage: ProfileImage
     
-    struct ProfileImage: Codable {
+    struct ProfileImage: Decodable {
         let small: String
         let medium: String
         let large: String

@@ -148,14 +148,12 @@ final class ProfileViewController: UIViewController {
     }
     
     private func setupNotificationObserver() {
-        profileImageServiceObserver = NotificationCenter.default
-            .addObserver(
-                forName: ProfileImageService.didChangeNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                self?.updateAvatar()
-            }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(updateAvatar),
+            name: ProfileImageService.didChangeNotification,
+            object: nil
+        )
     }
     
     // MARK: - Private Methods
@@ -179,7 +177,7 @@ final class ProfileViewController: UIViewController {
         descriptionLabel.text = ProfileConstants.Texts.defaultBio
     }
     
-    private func updateAvatar() {
+    @objc private func updateAvatar() {
         guard let profileImageURL = ProfileImageService.shared.avatarURL,
               let url = URL(string: profileImageURL) else { return }
         
@@ -241,13 +239,6 @@ final class ProfileViewController: UIViewController {
                 options: .transitionCrossDissolve,
                 animations: nil
             )
-        }
-    }
-    
-    // MARK: - Deinit
-    deinit {
-        if let observer = profileImageServiceObserver {
-            NotificationCenter.default.removeObserver(observer)
         }
     }
 }
