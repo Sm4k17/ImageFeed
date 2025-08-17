@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import Kingfisher
 
 // MARK: - Constants
 private enum SingleImageConstants {
@@ -25,9 +26,9 @@ private enum SingleImageConstants {
 final class SingleImageViewController: UIViewController {
     
     // MARK: - Properties
-    var image: UIImage? {
+    var imageURL: URL? {
         didSet {
-            configureImageView()
+            loadImage()
         }
     }
     
@@ -70,7 +71,7 @@ final class SingleImageViewController: UIViewController {
         super.viewDidLoad()
         setupView()
         setupConstraints()
-        configureImageView()
+        loadImage()
     }
     
     // MARK: - Setup Methods
@@ -98,28 +99,58 @@ final class SingleImageViewController: UIViewController {
             
             // Back Button
             backButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor,
-                                          constant: SingleImageConstants.backButtonInset),
+                                            constant: SingleImageConstants.backButtonInset),
             backButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor,
-                                              constant: SingleImageConstants.backButtonInset),
+                                                constant: SingleImageConstants.backButtonInset),
             backButton.widthAnchor.constraint(equalToConstant: SingleImageConstants.backButtonSize.width),
             backButton.heightAnchor.constraint(equalToConstant: SingleImageConstants.backButtonSize.height),
             
             // Share Button
             shareButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             shareButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor,
-                                              constant: -SingleImageConstants.shareButtonBottomInset),
+                                                constant: -SingleImageConstants.shareButtonBottomInset),
             shareButton.widthAnchor.constraint(equalToConstant: SingleImageConstants.shareButtonSize.width),
             shareButton.heightAnchor.constraint(equalToConstant: SingleImageConstants.shareButtonSize.height)
         ])
     }
     
     // MARK: - Private Methods
-    private func configureImageView() {
-        guard isViewLoaded, let image else { return }
+    private func loadImage() {
+        guard let imageURL = imageURL else {
+            showError(message: "Отсутствует URL изображения")
+            return
+        }
         
-        imageView.image = image
-        imageView.frame.size = image.size
-        rescaleAndCenterImageInScrollView(image: image)
+        KingfisherManager.shared.retrieveImage(with: imageURL) { [weak self] result in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let value):
+                    self.imageView.image = value.image
+                    self.rescaleAndCenterImageInScrollView(image: value.image)
+                case .failure(_):
+                    if self.imageView.image == nil {
+                        self.showError(message: "Не удалось загрузить фото")
+                    }
+                }
+            }
+        }
+    }
+    
+    private func showError(message: String = "Не удалось загрузить фото") {
+        let alert = UIAlertController(
+            title: "Ошибка",
+            message: message,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default) { _ in
+            self.dismiss(animated: true)
+        })
+        alert.addAction(UIAlertAction(title: "Повторить", style: .default) { _ in
+            self.loadImage()
+        })
+        present(alert, animated: true)
     }
     
     private func rescaleAndCenterImageInScrollView(image: UIImage?) {

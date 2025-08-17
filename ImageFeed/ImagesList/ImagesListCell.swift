@@ -58,7 +58,7 @@ final class ImagesListCell: UITableViewCell {
         setupCellUI()
         setupConstraints()
     }
-
+    
     required init?(coder: NSCoder) {
         print("init(coder:) is not implemented - using programmatic layout")
         return nil

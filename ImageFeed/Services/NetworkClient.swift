@@ -20,6 +20,9 @@ final class NetworkClient {
         case noNetworkConnection
         case timeout
         case duplicateRequest
+        case rateLimitExceeded
+        case unauthorized
+        case notFound
         
         var errorDescription: String? {
             switch self {
@@ -28,7 +31,7 @@ final class NetworkClient {
             case .invalidRequest:
                 return "Invalid request parameters"
             case .codeError(let code):
-                return "Server returned status code \(code)"
+                return self.customErrorMessage(for: code)
             case .invalidData:
                 return "Received invalid data"
             case .invalidResponse:
@@ -41,6 +44,29 @@ final class NetworkClient {
                 return "No network connection available"
             case .timeout:
                 return "Request timed out"
+            case .rateLimitExceeded:
+                return "API rate limit exceeded"
+            case .unauthorized:
+                return "Authorization required"
+            case .notFound:
+                return "Resource not found"
+            }
+        }
+        
+        private func customErrorMessage(for code: Int) -> String {
+            switch code {
+            case 401:
+                return "Unauthorized access"
+            case 403:
+                return "Forbidden"
+            case 404:
+                return "Resource not found"
+            case 429:
+                return "Too many requests"
+            case 500...599:
+                return "Server error"
+            default:
+                return "Server returned status code \(code)"
             }
         }
     }
@@ -69,20 +95,43 @@ final class NetworkClient {
     }
     
     // MARK: - Public Methods
+    
+    /// Универсальный метод для выполнения запросов
+    func fetch<T: Decodable>(
+        _ type: T.Type,
+        request: URLRequest,
+        bearerToken: String? = nil,
+        completion: @escaping (Result<T, Error>) -> Void
+    ) -> URLSessionTask? {
+        cancelPendingRequest()
+        
+        var authorizedRequest = request
+        if let bearerToken = bearerToken {
+            authorizedRequest.setValue("Bearer \(bearerToken)", forHTTPHeaderField: "Authorization")
+        }
+        
+        logRequest(authorizedRequest)
+        
+        let task = objectTask(for: authorizedRequest) { (result: Result<T, Error>) in
+            DispatchQueue.main.async {
+                completion(result)
+            }
+        }
+        
+        currentTask = task
+        return task
+    }
+    
     func fetchOAuthToken(
         code: String,
         completion: @escaping (Result<String, Error>) -> Void
     ) -> URLSessionTask? {
-        cancelPendingRequest()
-        
         guard let request = makeTokenRequest(code: code) else {
             completion(.failure(NetworkError.invalidRequest))
             return nil
         }
         
-        logRequest(request)
-        
-        let task = objectTask(for: request) { [weak self] (result: Result<OAuthTokenResponse, Error>) in
+        return fetch(OAuthTokenResponse.self, request: request) { [weak self] result in
             guard let self = self else { return }
             
             let tokenResult: Result<String, Error>
@@ -100,9 +149,6 @@ final class NetworkClient {
                 completion(tokenResult)
             }
         }
-        
-        currentTask = task
-        return task
     }
     
     func fetch(request: URLRequest, completion: @escaping (Result<Data, Error>) -> Void) -> URLSessionTask {
@@ -110,18 +156,24 @@ final class NetworkClient {
             if let error = error {
                 let nsError = error as NSError
                 print("[NetworkClient][dataTask] Request failed: \(nsError.domain) - код \(nsError.code), URL: \(request.url?.absoluteString ?? "nil")")
+                completion(.failure(self.mapError(error)))
+                return
+            }
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(.failure(NetworkError.invalidResponse))
+                return
+            }
+            
+            guard (200..<300).contains(httpResponse.statusCode) else {
+                let error = self.mapStatusCodeToError(httpResponse.statusCode)
                 completion(.failure(error))
                 return
             }
             
             guard let data = data else {
-                print("[NetworkClient][dataTask] Invalid data received, URL: \(request.url?.absoluteString ?? "nil")")
                 completion(.failure(NetworkError.invalidData))
                 return
-            }
-            
-            if let httpResponse = response as? HTTPURLResponse, !(200..<300).contains(httpResponse.statusCode) {
-                print("[NetworkClient][dataTask] Server error: код \(httpResponse.statusCode), URL: \(request.url?.absoluteString ?? "nil")")
             }
             
             completion(.success(data))
@@ -130,7 +182,7 @@ final class NetworkClient {
         task.resume()
         return task
     }
-
+    
     func objectTask<T: Decodable>(
         for request: URLRequest,
         completion: @escaping (Result<T, Error>) -> Void
@@ -142,29 +194,19 @@ final class NetworkClient {
             
             if let error = error {
                 let mappedError = self.mapError(error)
-                print("[NetworkClient][objectTask] Request failed: \(mappedError.localizedDescription), URL: \(request.url?.absoluteString ?? "nil")")
                 result = .failure(mappedError)
             } else if let httpResponse = response as? HTTPURLResponse,
                       !(200..<300).contains(httpResponse.statusCode) {
-                print("[NetworkClient][objectTask] Server error: код \(httpResponse.statusCode), URL: \(request.url?.absoluteString ?? "nil")")
-                result = .failure(NetworkError.codeError(httpResponse.statusCode))
+                let error = self.mapStatusCodeToError(httpResponse.statusCode)
+                result = .failure(error)
             } else if let data = data {
                 do {
                     let decodedObject = try self.decoder.decode(T.self, from: data)
                     result = .success(decodedObject)
                 } catch {
-                    let dataString = String(data: data, encoding: .utf8) ?? "нечитаемые данные"
-                    print("""
-                    [NetworkClient][objectTask] Decoding failed:
-                    - Error: \(error.localizedDescription)
-                    - Type: \(T.self)
-                    - Data: \(dataString)
-                    - URL: \(request.url?.absoluteString ?? "nil")
-                    """)
                     result = .failure(error)
                 }
             } else {
-                print("[NetworkClient][objectTask] No data received, URL: \(request.url?.absoluteString ?? "nil")")
                 result = .failure(NetworkError.invalidData)
             }
             
@@ -178,9 +220,26 @@ final class NetworkClient {
     }
     
     // MARK: - Private Methods
+    
+    private func mapStatusCodeToError(_ statusCode: Int) -> NetworkError {
+        switch statusCode {
+        case 401:
+            return .unauthorized
+        case 403:
+            return .unauthorized
+        case 404:
+            return .notFound
+        case 429:
+            return .rateLimitExceeded
+        case 500...599:
+            return .codeError(statusCode)
+        default:
+            return .codeError(statusCode)
+        }
+    }
+    
     private func makeTokenRequest(code: String) -> URLRequest? {
         guard let url = URL(string: Constants.unsplashTokenURLString) else {
-            print("[Network] Error: Invalid URL string - \(Constants.unsplashTokenURLString)")
             return nil
         }
         
@@ -196,69 +255,10 @@ final class NetworkClient {
         ]
         
         let bodyString = parameters.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
-        
-        guard let httpBody = bodyString.data(using: .utf8) else {
-            print("[Network] Error: Failed to create HTTP body from parameters")
-            return nil
-        }
-        
-        request.httpBody = httpBody
+        request.httpBody = bodyString.data(using: .utf8)
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         
         return request
-    }
-    
-    private func processTokenResponse(
-        data: Data?,
-        response: URLResponse?,
-        error: Error?
-    ) -> Result<String, Error> {
-        if let error = error {
-            logError(error)
-            return .failure(mapError(error))
-        }
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            logInvalidResponse()
-            return .failure(NetworkError.invalidResponse)
-        }
-        
-        logResponse(httpResponse)
-        
-        guard (200..<300).contains(httpResponse.statusCode) else {
-            logInvalidStatusCode(httpResponse.statusCode)
-            if let data = data {
-                logResponseData(data)
-            }
-            return .failure(NetworkError.codeError(httpResponse.statusCode))
-        }
-        
-        guard let data = data else {
-            logInvalidData()
-            return .failure(NetworkError.invalidData)
-        }
-        
-        // Логируем сырой JSON перед декодированием
-        if let jsonString = String(data: data, encoding: .utf8) {
-            logDebug("Raw JSON: \(jsonString)")
-        }
-        
-        do {
-            let responseBody = try decoder.decode(OAuthTokenResponse.self, from: data)
-            logSuccess("Token decoded successfully")
-            return .success(responseBody.accessToken)
-        } catch let decodingError {
-            logDecodingError(decodingError)
-            
-            // Fallback только если действительно нужно
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let token = json["access_token"] as? String {
-                logWarning("Used fallback token extraction. Decoding error: \(decodingError)")
-                return .success(token)
-            }
-            
-            return .failure(decodingError)
-        }
     }
     
     private func mapError(_ error: Error) -> Error {

@@ -19,7 +19,7 @@ private enum ProfileConstants {
     static let secondaryFontSize: CGFloat = 13
     
     enum Images {
-        static let avatar = "avatar"
+        static let avatar = "person.crop.circle.fill"
         static let logout = "logout_button"
     }
     

@@ -23,43 +23,41 @@ final class ProfileService {
         assert(Thread.isMainThread)
         currentTask?.cancel()
         
-        guard let request = makeProfileRequest(token: token) else {
-            let error = NetworkClient.NetworkError.invalidRequest
-            print("[ProfileService][fetchProfile] Invalid request, token: \(token)")
-            completion(.failure(error))
+        guard let request = makeProfileRequest() else {
+            completion(.failure(NetworkClient.NetworkError.invalidRequest))
             return
         }
         
-        currentTask = networkClient.objectTask(for: request) { [weak self] (result: Result<ProfileResult, Error>) in
+        currentTask = networkClient.fetch(
+            ProfileResult.self,
+            request: request,
+            bearerToken: token
+        ) { [weak self] (result: Result<ProfileResult, Error>) in
             guard let self = self else { return }
-            
-            let profileResult: Result<Profile, Error>
             
             switch result {
             case .success(let profileResultData):
                 let profile = Profile(from: profileResultData)
                 self.profile = profile
-                profileResult = .success(profile)
+                DispatchQueue.main.async {
+                    completion(.success(profile))
+                }
             case .failure(let error):
-                print("[ProfileService][fetchProfile] Failed with error: \(error.localizedDescription), token: \(token)")
-                profileResult = .failure(error)
-            }
-            
-            DispatchQueue.main.async {
-                completion(profileResult)
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
             }
         }
     }
     
     // MARK: - Private Methods
-    private func makeProfileRequest(token: String) -> URLRequest? {
+    private func makeProfileRequest() -> URLRequest? {
         guard let url = URL(string: "https://api.unsplash.com/me") else {
             return nil
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return request
     }
 }
