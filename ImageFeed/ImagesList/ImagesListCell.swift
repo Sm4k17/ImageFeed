@@ -42,15 +42,16 @@ final class ImagesListCell: UITableViewCell {
         return label
     }()
     
-    private lazy var likeButton: UIButton = {
+    lazy var likeButton: UIButton = {
         let button = UIButton()
-        button.addTarget(self, action: #selector(didTapLikeButton), for: .touchUpInside)
+        button.addTarget(nil, action: #selector(didTapLikeButton), for: .touchUpInside)
         button.accessibilityIdentifier = "likeButton"
         return button
     }()
     
     // MARK: - Private Properties
     private var gradientLayer: CAGradientLayer?
+    var likeAction: ((Bool) -> Void)?
     
     // MARK: - Lifecycle
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -60,8 +61,7 @@ final class ImagesListCell: UITableViewCell {
     }
     
     required init?(coder: NSCoder) {
-        print("init(coder:) is not implemented - using programmatic layout")
-        return nil
+        fatalError("init(coder:) has not been implemented")
     }
     
     override func layoutSubviews() {
@@ -73,6 +73,7 @@ final class ImagesListCell: UITableViewCell {
         super.prepareForReuse()
         cellImage.image = nil
         dateLabel.text = nil
+        likeButton.setImage(nil, for: .normal)
     }
     
     // MARK: - Setup Methods
@@ -88,7 +89,6 @@ final class ImagesListCell: UITableViewCell {
     
     private func setupConstraints() {
         NSLayoutConstraint.activate([
-            // Cell Image
             cellImage.topAnchor.constraint(equalTo: contentView.topAnchor,
                                            constant: ImagesListCellConstants.imageInsets.top),
             cellImage.leadingAnchor.constraint(equalTo: contentView.leadingAnchor,
@@ -98,13 +98,11 @@ final class ImagesListCell: UITableViewCell {
             cellImage.bottomAnchor.constraint(equalTo: contentView.bottomAnchor,
                                               constant: -ImagesListCellConstants.imageInsets.bottom),
             
-            // Like Button
             likeButton.topAnchor.constraint(equalTo: cellImage.topAnchor),
             likeButton.trailingAnchor.constraint(equalTo: cellImage.trailingAnchor),
             likeButton.widthAnchor.constraint(equalToConstant: ImagesListCellConstants.likeButtonSize.width),
             likeButton.heightAnchor.constraint(equalToConstant: ImagesListCellConstants.likeButtonSize.height),
             
-            // Date Label
             dateLabel.leadingAnchor.constraint(equalTo: cellImage.leadingAnchor,
                                                constant: ImagesListCellConstants.dateLabelInsets.left),
             dateLabel.bottomAnchor.constraint(equalTo: cellImage.bottomAnchor,
@@ -115,7 +113,12 @@ final class ImagesListCell: UITableViewCell {
     // MARK: - Public Methods
     func setLikeButtonImage(isLiked: Bool) {
         let imageName = isLiked ? ImagesListCellConstants.Images.likeButtonOn : ImagesListCellConstants.Images.likeButtonOff
-        likeButton.setImage(UIImage(named: imageName), for: .normal)
+        UIView.transition(with: likeButton,
+                          duration: 0.2,
+                          options: .transitionCrossDissolve,
+                          animations: {
+            self.likeButton.setImage(UIImage(named: imageName), for: .normal)
+        })
     }
     
     func setupGradient() {
@@ -144,6 +147,6 @@ final class ImagesListCell: UITableViewCell {
     
     // MARK: - Actions
     @objc private func didTapLikeButton() {
-        // Обработка нажатия на кнопку лайка
+        likeAction?(!(likeButton.currentImage == UIImage(named: ImagesListCellConstants.Images.likeButtonOn)))
     }
 }

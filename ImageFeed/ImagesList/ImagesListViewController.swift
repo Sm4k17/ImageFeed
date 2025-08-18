@@ -30,6 +30,7 @@ final class ImagesListViewController: UIViewController {
     private let imagesListService = ImagesListService.shared
     private var photos: [Photo] = []
     private var imageSizes: [CGSize] = []
+    private let refreshControl = UIRefreshControl()
     
     // MARK: - UI Elements
     private lazy var tableView: UITableView = {
@@ -48,6 +49,7 @@ final class ImagesListViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupView()
+        setupRefreshControl()
         setupNotificationObserver()
         fetchInitialPhotos()
     }
@@ -65,6 +67,12 @@ final class ImagesListViewController: UIViewController {
         ])
     }
     
+    private func setupRefreshControl() {
+        refreshControl.tintColor = .ypWhite
+        refreshControl.addTarget(self, action: #selector(refreshPhotos(_:)), for: .valueChanged)
+        tableView.refreshControl = refreshControl
+    }
+    
     private func setupNotificationObserver() {
         NotificationCenter.default.addObserver(
             self,
@@ -79,17 +87,77 @@ final class ImagesListViewController: UIViewController {
         imagesListService.fetchPhotosNextPage()
     }
     
-    // MARK: - Private Methods
-    @objc private func handlePhotosChanged(_ notification: Notification) {
-        updateTableViewAnimated()
-        UIBlockingProgressHUD.dismiss()
+    // MARK: - Action Methods
+    @objc private func refreshPhotos(_ sender: Any) {
+        photos.removeAll()
+        imageSizes.removeAll()
+        tableView.reloadData()
+        imagesListService.fetchPhotosNextPage()
     }
     
+    @objc private func handlePhotosChanged(_ notification: Notification) {
+        let newPhotos = imagesListService.photos
+        
+        // Проверяем, что новые фотографии действительно новые
+        if newPhotos.count > photos.count {
+            updateTableViewAnimated()
+        } else if newPhotos.count < photos.count {
+            // Это случай pull-to-refresh
+            photos = newPhotos
+            imageSizes = newPhotos.map { $0.size }
+            tableView.reloadData()
+        }
+        
+        UIBlockingProgressHUD.dismiss()
+        refreshControl.endRefreshing()
+    }
+    
+    @objc private func didTapLikeButton(_ sender: UIButton) {
+        guard let cell = sender.superview?.superview as? ImagesListCell,
+              let indexPath = tableView.indexPath(for: cell),
+              indexPath.row < photos.count else {
+            return
+        }
+        
+        var photo = photos[indexPath.row]
+        let newLikeStatus = !photo.isLiked
+        
+        // Оптимистичное обновление
+        photo.isLiked = newLikeStatus
+        photos[indexPath.row] = photo
+        cell.setLikeButtonImage(isLiked: newLikeStatus)
+        cell.likeButton.isUserInteractionEnabled = false
+        
+        UIBlockingProgressHUD.show()
+        
+        imagesListService.changeLike(photoId: photo.id, isLike: newLikeStatus) { [weak self] result in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                UIBlockingProgressHUD.dismiss()
+                cell.likeButton.isUserInteractionEnabled = true
+                
+                switch result {
+                case .success(let updatedPhoto):
+                    if let index = self.photos.firstIndex(where: { $0.id == updatedPhoto.id }) {
+                        self.photos[index] = updatedPhoto
+                    }
+                case .failure(let error):
+                    // Откатываем изменения
+                    photo.isLiked = !newLikeStatus
+                    self.photos[indexPath.row] = photo
+                    cell.setLikeButtonImage(isLiked: !newLikeStatus)
+                    self.showLikeErrorAlert(error: error)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Private Methods
     private func updateTableViewAnimated() {
         let oldCount = photos.count
         let newPhotos = imagesListService.photos
         
-        // Фильтруем только новые уникальные фото
         let uniqueNewPhotos = newPhotos.filter { newPhoto in
             !photos.contains { $0.id == newPhoto.id }
         }
@@ -97,7 +165,6 @@ final class ImagesListViewController: UIViewController {
         if !uniqueNewPhotos.isEmpty {
             photos.append(contentsOf: uniqueNewPhotos)
             
-            // Обновляем размеры только для новых фото
             let newSizes = uniqueNewPhotos.map { $0.size }
             imageSizes.append(contentsOf: newSizes)
             
@@ -113,33 +180,20 @@ final class ImagesListViewController: UIViewController {
     
     private func configureCell(_ cell: ImagesListCell, at indexPath: IndexPath) {
         guard indexPath.row < photos.count else { return }
-        
         let photo = photos[indexPath.row]
         
-        // Убираем настройку индикатора
-        cell.cellImage.kf.setImage(
-            with: URL(string: photo.urls.regular) ?? photo.thumbImageURL,
-            placeholder: UIImage(named: "stab_icon"),
-            options: [.transition(.fade(0.2))]
-        ) { [weak self] result in
-            guard let self = self else { return }
-            
-            switch result {
-            case .success:
-                if self.tableView.indexPathsForVisibleRows?.contains(indexPath) == true {
-                    self.tableView.reloadRows(at: [indexPath], with: .automatic)
-                }
-            case .failure(let error):
-                print("Ошибка загрузки изображения: \(error.localizedDescription)")
-                cell.cellImage.image = UIImage(named: "load_error_icon")
-            }
+        // Настройка изображения
+        cell.cellImage.contentMode = .center
+        cell.cellImage.kf.setImage(with: URL(string: photo.urls.regular) ?? photo.thumbImageURL) { result in
+            // Обработка загрузки изображения
         }
         
-        cell.dateLabel.text = photo.createdAt.map { date in
-            ImagesListConstants.dateFormatter.string(from: date)
-        }
-        
+        // Устанавливаем лайк
         cell.setLikeButtonImage(isLiked: photo.isLiked)
+        cell.likeButton.addTarget(self, action: #selector(didTapLikeButton), for: .touchUpInside)
+        
+        // Дата и градиент
+        cell.dateLabel.text = photo.createdAt.map { ImagesListConstants.dateFormatter.string(from: $0) }
         DispatchQueue.main.async {
             cell.setupGradient()
         }
@@ -157,6 +211,16 @@ final class ImagesListViewController: UIViewController {
         let imageViewHeight = imageSize.height * scaleRatio
         
         return imageViewHeight + ImagesListConstants.imageInsets.top + ImagesListConstants.imageInsets.bottom
+    }
+    
+    private func showLikeErrorAlert(error: Error) {
+        let alert = UIAlertController(
+            title: "Ошибка",
+            message: "Не удалось изменить лайк: \(error.localizedDescription)",
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 }
 
