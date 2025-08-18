@@ -24,8 +24,8 @@ private enum ProfileConstants {
     }
     
     enum Texts {
-        static let logoutTitle = "Выход"
-        static let logoutMessage = "Вы уверены, что хотите выйти?"
+        static let logoutTitle = "Пока, пока!"
+        static let logoutMessage = "Уверены, что хотите выйти?"
         static let logoutConfirm = "Да"
         static let logoutCancel = "Нет"
         static let defaultName = "Имя Фамилия"
@@ -208,37 +208,18 @@ final class ProfileViewController: UIViewController {
             preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: ProfileConstants.Texts.logoutConfirm, style: .default) { [weak self] _ in
-            self?.performLogout()
+        alert.addAction(UIAlertAction(
+            title: ProfileConstants.Texts.logoutConfirm,
+            style: .destructive
+        ) { _ in
+            ProfileLogoutService.shared.logout()
         })
         
-        alert.addAction(UIAlertAction(title: ProfileConstants.Texts.logoutCancel, style: .cancel))
+        alert.addAction(UIAlertAction(
+            title: ProfileConstants.Texts.logoutCancel,
+            style: .cancel
+        ))
         
         present(alert, animated: true)
-    }
-    
-    private func performLogout() {
-        OAuth2TokenStorage.shared.token = nil
-        ProfileImageService.shared.clearAvatarURL()
-        
-        let webViewVC = WebViewViewController()
-        webViewVC.cleanWebViewData()
-        
-        DispatchQueue.main.async {
-            guard let window = UIApplication.shared.windows.first else {
-                print("Ошибка: не найден UIWindow")
-                return
-            }
-            
-            let splashVC = SplashViewController()
-            window.rootViewController = splashVC
-            
-            UIView.transition(
-                with: window,
-                duration: 0.3,
-                options: .transitionCrossDissolve,
-                animations: nil
-            )
-        }
     }
 }

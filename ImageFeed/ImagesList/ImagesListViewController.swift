@@ -182,17 +182,42 @@ final class ImagesListViewController: UIViewController {
         guard indexPath.row < photos.count else { return }
         let photo = photos[indexPath.row]
         
-        // Настройка изображения
+        // Начальная настройка ячейки с placeholder
         cell.cellImage.contentMode = .center
-        cell.cellImage.kf.setImage(with: URL(string: photo.urls.regular) ?? photo.thumbImageURL) { result in
-            // Обработка загрузки изображения
+        let placeholderImage = UIImage(named: "stab_icon")
+        cell.cellImage.image = placeholderImage
+        
+        // Настройка загрузки изображения с использованием placeholder из Kingfisher
+        cell.cellImage.kf.setImage(
+            with: URL(string: photo.urls.regular),
+            placeholder: placeholderImage, // Используем placeholder через Kingfisher
+            options: [
+                .transition(.fade(0.3)),
+                .scaleFactor(UIScreen.main.scale),
+                .cacheOriginalImage,
+                .keepCurrentImageWhileLoading // Важная опция - сохраняет текущее изображение во время загрузки
+            ]
+        ) { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success:
+                // После успешной загрузки меняем режим отображения
+                cell.cellImage.contentMode = .scaleAspectFill
+                if self.tableView.indexPathsForVisibleRows?.contains(indexPath) == true {
+                    self.tableView.reloadRows(at: [indexPath], with: .none)
+                }
+            case .failure(let error):
+                print("Ошибка загрузки изображения: \(error.localizedDescription)")
+                // При ошибке оставляем placeholder по центру
+                cell.cellImage.contentMode = .center
+                cell.cellImage.image = placeholderImage
+            }
         }
         
-        // Устанавливаем лайк
+        // Настройка остальных элементов ячейки
         cell.setLikeButtonImage(isLiked: photo.isLiked)
         cell.likeButton.addTarget(self, action: #selector(didTapLikeButton), for: .touchUpInside)
-        
-        // Дата и градиент
         cell.dateLabel.text = photo.createdAt.map { ImagesListConstants.dateFormatter.string(from: $0) }
         DispatchQueue.main.async {
             cell.setupGradient()

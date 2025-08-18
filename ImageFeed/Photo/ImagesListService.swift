@@ -188,4 +188,13 @@ final class ImagesListService {
             print("Decoding error details: \(decodingError.localizedDescription)")
         }
     }
+    
+    // MARK: - Public Methods
+    func resetPhotos() {
+        photos = []
+        NotificationCenter.default.post(
+            name: ImagesListService.didChangeNotification,
+            object: self
+        )
+    }
 }

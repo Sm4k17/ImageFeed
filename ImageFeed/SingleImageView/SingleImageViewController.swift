@@ -121,15 +121,19 @@ final class SingleImageViewController: UIViewController {
             return
         }
         
-        KingfisherManager.shared.retrieveImage(with: imageURL) { [weak self] result in
+        UIBlockingProgressHUD.show() // Показываем индикатор загрузки
+        
+        imageView.kf.setImage(with: imageURL) { [weak self] result in
+            UIBlockingProgressHUD.dismiss() // Скрываем индикатор после завершения загрузки
+            
             guard let self = self else { return }
             
             DispatchQueue.main.async {
                 switch result {
-                case .success(let value):
-                    self.imageView.image = value.image
-                    self.rescaleAndCenterImageInScrollView(image: value.image)
-                case .failure(_):
+                case .success(let imageResult):
+                    self.imageView.image = imageResult.image
+                    self.rescaleAndCenterImageInScrollView(image: imageResult.image)
+                case .failure:
                     if self.imageView.image == nil {
                         self.showError(message: "Не удалось загрузить фото")
                     }
