@@ -19,7 +19,7 @@ private enum ImagesListConstants {
         formatter.locale = Locale(identifier: "ru_RU")
         formatter.dateStyle = .long
         formatter.timeStyle = .none
-        formatter.doesRelativeDateFormatting = true
+        formatter.doesRelativeDateFormatting = false
         return formatter
     }()
 }
@@ -53,6 +53,10 @@ final class ImagesListViewController: UIViewController {
         setupNotificationObserver()
         fetchInitialPhotos()
     }
+    
+    deinit {
+            NotificationCenter.default.removeObserver(self)
+        }
     
     // MARK: - Setup Methods
     private func setupView() {

@@ -136,6 +136,10 @@ final class SingleImageViewController: UIViewController {
                 case .failure:
                     if self.imageView.image == nil {
                         self.showError(message: "Не удалось загрузить фото")
+                        let pceholderImage = UIImage(systemName: "stab_icon")
+                        self.imageView.image = pceholderImage
+                        self.imageView.contentMode = .center
+                        self.rescaleAndCenterImageInScrollView(image: pceholderImage)
                     }
                 }
             }
