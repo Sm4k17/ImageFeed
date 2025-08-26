@@ -19,13 +19,13 @@ private enum ProfileConstants {
     static let secondaryFontSize: CGFloat = 13
     
     enum Images {
-        static let avatar = "avatar"
+        static let avatar = "person.crop.circle.fill"
         static let logout = "logout_button"
     }
     
     enum Texts {
-        static let logoutTitle = "Выход"
-        static let logoutMessage = "Вы уверены, что хотите выйти?"
+        static let logoutTitle = "Пока, пока!"
+        static let logoutMessage = "Уверены, что хотите выйти?"
         static let logoutConfirm = "Да"
         static let logoutCancel = "Нет"
         static let defaultName = "Имя Фамилия"
@@ -148,14 +148,12 @@ final class ProfileViewController: UIViewController {
     }
     
     private func setupNotificationObserver() {
-        profileImageServiceObserver = NotificationCenter.default
-            .addObserver(
-                forName: ProfileImageService.didChangeNotification,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                self?.updateAvatar()
-            }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(updateAvatar),
+            name: ProfileImageService.didChangeNotification,
+            object: nil
+        )
     }
     
     // MARK: - Private Methods
@@ -179,7 +177,7 @@ final class ProfileViewController: UIViewController {
         descriptionLabel.text = ProfileConstants.Texts.defaultBio
     }
     
-    private func updateAvatar() {
+    @objc private func updateAvatar() {
         guard let profileImageURL = ProfileImageService.shared.avatarURL,
               let url = URL(string: profileImageURL) else { return }
         
@@ -210,44 +208,18 @@ final class ProfileViewController: UIViewController {
             preferredStyle: .alert
         )
         
-        alert.addAction(UIAlertAction(title: ProfileConstants.Texts.logoutConfirm, style: .default) { [weak self] _ in
-            self?.performLogout()
+        alert.addAction(UIAlertAction(
+            title: ProfileConstants.Texts.logoutConfirm,
+            style: .destructive
+        ) { _ in
+            ProfileLogoutService.shared.logout()
         })
         
-        alert.addAction(UIAlertAction(title: ProfileConstants.Texts.logoutCancel, style: .cancel))
+        alert.addAction(UIAlertAction(
+            title: ProfileConstants.Texts.logoutCancel,
+            style: .cancel
+        ))
         
         present(alert, animated: true)
-    }
-    
-    private func performLogout() {
-        OAuth2TokenStorage.shared.token = nil
-        ProfileImageService.shared.clearAvatarURL()
-        
-        let webViewVC = WebViewViewController()
-        webViewVC.cleanWebViewData()
-        
-        DispatchQueue.main.async {
-            guard let window = UIApplication.shared.windows.first else {
-                print("Ошибка: не найден UIWindow")
-                return
-            }
-            
-            let splashVC = SplashViewController()
-            window.rootViewController = splashVC
-            
-            UIView.transition(
-                with: window,
-                duration: 0.3,
-                options: .transitionCrossDissolve,
-                animations: nil
-            )
-        }
-    }
-    
-    // MARK: - Deinit
-    deinit {
-        if let observer = profileImageServiceObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
     }
 }

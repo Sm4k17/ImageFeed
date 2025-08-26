@@ -37,36 +37,33 @@ final class ProfileImageService {
         currentTask?.cancel()
         
         guard let token = tokenStorage.token else {
-            let error = NetworkClient.NetworkError.invalidRequest
-            print("[ProfileImageService][fetchProfileImageURL] No token available, username: \(username)")
-            completion(.failure(error))
+            completion(.failure(NetworkClient.NetworkError.invalidRequest))
             return
         }
         
-        guard let request = makeProfileImageRequest(username: username, token: token) else {
-            let error = NetworkClient.NetworkError.invalidRequest
-            print("[ProfileImageService][fetchProfileImageURL] Invalid request, username: \(username)")
-            completion(.failure(error))
+        guard let request = makeProfileImageRequest(username: username) else {
+            completion(.failure(NetworkClient.NetworkError.invalidRequest))
             return
         }
         
-        currentTask = networkClient.objectTask(for: request) { [weak self] (result: Result<UserResult, Error>) in
+        currentTask = networkClient.fetch(
+            UserResult.self,
+            request: request,
+            bearerToken: token
+        ) { [weak self] (result: Result<UserResult, Error>) in
             guard let self = self else { return }
-            
-            let imageURLResult: Result<String, Error>
             
             switch result {
             case .success(let userResult):
                 let imageURL = userResult.profileImage.large
                 self.avatarURL = imageURL
-                imageURLResult = .success(imageURL)
+                DispatchQueue.main.async {
+                    completion(.success(imageURL))
+                }
             case .failure(let error):
-                print("[ProfileImageService][fetchProfileImageURL] Failed with error: \(error.localizedDescription), username: \(username)")
-                imageURLResult = .failure(error)
-            }
-            
-            DispatchQueue.main.async {
-                completion(imageURLResult)
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
             }
         }
     }
@@ -76,23 +73,22 @@ final class ProfileImageService {
     }
     
     // MARK: - Private Methods
-    private func makeProfileImageRequest(username: String, token: String) -> URLRequest? {
+    private func makeProfileImageRequest(username: String) -> URLRequest? {
         guard let url = URL(string: "https://api.unsplash.com/users/\(username)") else {
             return nil
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return request
     }
 }
 
 // MARK: - Data Structures
-struct UserResult: Codable {
+struct UserResult: Decodable {
     let profileImage: ProfileImage
     
-    struct ProfileImage: Codable {
+    struct ProfileImage: Decodable {
         let small: String
         let medium: String
         let large: String

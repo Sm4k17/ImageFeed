@@ -10,7 +10,9 @@ import Foundation
 final class OAuth2Service {
     // MARK: - Singleton
     static let shared = OAuth2Service()
-    
+    private init() {
+        debugPrint("OAuth2Service инициализирован")
+    }
     // MARK: - Private Properties
     private let networkClient = NetworkClient()
     private var currentTask: URLSessionTask?

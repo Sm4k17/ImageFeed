@@ -107,24 +107,6 @@ final class WebViewViewController: UIViewController {
         ])
     }
     
-    // Очистка данных WebView
-    func cleanWebViewData() {
-        // Очистка куков
-        HTTPCookieStorage.shared.removeCookies(since: Date.distantPast)
-        
-        // Очистка кеша и данных WKWebView
-        let dataStore = WKWebsiteDataStore.default()
-        dataStore.fetchDataRecords(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes()) { records in
-            dataStore.removeData(
-                ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(),
-                for: records,
-                completionHandler: {
-                    print("Все данные WKWebView (кеш, куки, localStorage) очищены")
-                }
-            )
-        }
-    }
-    
     // MARK: - Progress Observation (новое KVO API)
     private func setupProgressObserver() {
         // Создаем наблюдение за свойством estimatedProgress с помощью нового API

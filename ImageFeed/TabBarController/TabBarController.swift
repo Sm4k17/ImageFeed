@@ -38,6 +38,9 @@ final class MainTabBarController: UITabBarController {
         tabBar.tintColor = TabBarConstants.TabBar.tintColor
         tabBar.unselectedItemTintColor = TabBarConstants.TabBar.unselectedTintColor
         tabBar.isTranslucent = TabBarConstants.TabBar.isTranslucent
+        // УДАЛЕНИЕ ВЕРХНЕЙ ГРАНИЦЫ
+        tabBar.backgroundImage = UIImage()
+        tabBar.shadowImage = UIImage()
     }
     
     private func setupTabBar() {
