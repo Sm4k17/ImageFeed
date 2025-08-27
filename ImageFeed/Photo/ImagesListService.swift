@@ -12,6 +12,15 @@ struct PhotoLikeResponse: Decodable {
 }
 
 final class ImagesListService {
+    // MARK: - HTTPMethod
+    enum HTTPMethod: String {
+        case get = "GET"
+        case post = "POST"
+        case put = "PUT"
+        case delete = "DELETE"
+        case patch = "PATCH"
+    }
+    
     // MARK: - Singleton
     static let shared = ImagesListService()
     private init() {}
@@ -72,7 +81,7 @@ final class ImagesListService {
             return
         }
         
-        let httpMethod = isLike ? "POST" : "DELETE"
+        let httpMethod = isLike ? HTTPMethod.post : HTTPMethod.delete
         let urlString = "https://api.unsplash.com/photos/\(photoId)/like"
         
         guard let url = URL(string: urlString) else {
@@ -81,7 +90,7 @@ final class ImagesListService {
         }
         
         var request = URLRequest(url: url)
-        request.httpMethod = httpMethod
+        request.httpMethod = httpMethod.rawValue
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         currentTask = networkClient.fetch(PhotoLikeResponse.self, request: request) { [weak self] result in

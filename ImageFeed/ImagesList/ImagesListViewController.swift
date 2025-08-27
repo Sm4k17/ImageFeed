@@ -22,7 +22,12 @@ private enum ImagesListConstants {
         formatter.doesRelativeDateFormatting = false
         return formatter
     }()
-}
+    
+    // MARK: - Alert Texts
+        static let likeErrorAlertTitle = "Ошибка"
+        static let likeErrorMessage = "Не удалось изменить лайк"
+        static let okButtonTitle = "OK"
+    }
 
 // MARK: - ImagesListViewController
 final class ImagesListViewController: UIViewController {
@@ -244,11 +249,14 @@ final class ImagesListViewController: UIViewController {
     
     private func showLikeErrorAlert(error: Error) {
         let alert = UIAlertController(
-            title: "Ошибка",
-            message: "Не удалось изменить лайк: \(error.localizedDescription)",
+            title: ImagesListConstants.likeErrorAlertTitle,
+            message: "\(ImagesListConstants.likeErrorMessage): \(error.localizedDescription)",
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        alert.addAction(UIAlertAction(
+            title: ImagesListConstants.okButtonTitle,
+            style: .default
+        ))
         present(alert, animated: true)
     }
 }
