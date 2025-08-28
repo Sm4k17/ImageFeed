@@ -14,8 +14,6 @@ private enum WebViewConstants {
     static let backButtonTopInset: CGFloat = 8
     static let backButtonLeadingInset: CGFloat = 8
     static let progressViewTopInset: CGFloat = 8
-    static let progressComparisonPrecision = 0.0001
-    static let progressCornerRadius: CGFloat = 2
     
     enum Images {
         static let backButton = "nav_back_button"
@@ -25,6 +23,7 @@ private enum WebViewConstants {
 // MARK: - WebViewViewController
 final class WebViewViewController: UIViewController {
     // MARK: - Public Properties
+    var presenter: WebViewPresenterProtocol?
     weak var delegate: WebViewViewControllerDelegate?
     
     // MARK: - UI Components
@@ -50,32 +49,32 @@ final class WebViewViewController: UIViewController {
         view.progressTintColor = .ypBlack
         view.trackTintColor = .ypGray
         view.accessibilityIdentifier = "progressView"
-        view.layer.cornerRadius = WebViewConstants.progressCornerRadius
+        view.layer.cornerRadius = 2
         view.layer.masksToBounds = true
         return view
     }()
     
     // MARK: - Setup Methods
-    private var estimatedProgressObservation: NSKeyValueObservation? // Наблюдатель за прогрессом
+    private var estimatedProgressObservation: NSKeyValueObservation?
     
     // MARK: - Lifecycle
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        setupProgressObserver() // Настраиваем наблюдение при появлении
-    }
-    
-    override func viewDidDisappear(_ animated: Bool) {
-        super.viewDidDisappear(animated)
-        removeProgressObserver() // Удаляем наблюдение при исчезновении
-    }
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupWebViewUI()
         setupConstraints()
         setupProgressObserver()
-        loadAuthView()
         webView.navigationDelegate = self
+        presenter?.viewDidLoad()
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        setupProgressObserver()
+    }
+    
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        removeProgressObserver()
     }
     
     // MARK: - Setup UI
@@ -107,99 +106,40 @@ final class WebViewViewController: UIViewController {
         ])
     }
     
-    // MARK: - Progress Observation (новое KVO API)
+    // MARK: - Progress Observation
     private func setupProgressObserver() {
-        // Создаем наблюдение за свойством estimatedProgress с помощью нового API
         estimatedProgressObservation = webView.observe(
-            \.estimatedProgress, // Ключевой путь к свойству
-            options: [.new] // Нас интересуют только новые значения
-        ) { [weak self] _, _ in
-            // При изменении значения обновляем прогресс
-            guard let self = self else { return }
-            self.updateProgress()
+            \.estimatedProgress,
+             options: [.new]
+        ) { [weak self] _, change in
+            guard let self = self, let newValue = change.newValue else { return }
+            self.presenter?.didUpdateProgressValue(newValue)
         }
     }
     
     private func removeProgressObserver() {
-        // Отменяем наблюдение
         estimatedProgressObservation?.invalidate()
         estimatedProgressObservation = nil
-    }
-    
-    // MARK: - Auth View Loading
-    private func loadAuthView() {
-        let unsplashAuthorizeURLString = "https://unsplash.com/oauth/authorize"
-        
-        guard var urlComponents = URLComponents(string: unsplashAuthorizeURLString) else {
-            print("Не удалось создать URL компоненты")
-            return
-        }
-        
-        urlComponents.queryItems = [
-            URLQueryItem(name: "client_id", value: ImageFeed.Constants.accessKey),
-            URLQueryItem(name: "redirect_uri", value: ImageFeed.Constants.redirectURI),
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "scope", value: ImageFeed.Constants.accessScope)
-        ]
-        
-        guard let url = urlComponents.url else {
-            print("Не удалось создать URL из компонентов")
-            return
-        }
-        
-        let request = URLRequest(url: url)
-        webView.load(request)
-    }
-    
-    // MARK: - Code Extraction
-    private func code(from navigationAction: WKNavigationAction) -> String? {
-        guard let url = navigationAction.request.url else {
-            print("Не удалось получить URL из navigation action")
-            return nil
-        }
-        
-        // Проверка стандартного redirect URI
-        if url.absoluteString.hasPrefix(ImageFeed.Constants.redirectURI),
-           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-           let codeItem = components.queryItems?.first(where: { $0.name == "code" }) {
-            print("Извлечен код из redirect URI: \(codeItem.value ?? "")")
-            return codeItem.value
-        }
-        
-        // Проверка native URL
-        if url.absoluteString.contains("unsplash.com/oauth/authorize/native"),
-           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-           let codeItem = components.queryItems?.first(where: { $0.name == "code" }) {
-            print("Извлечен код из native URL: \(codeItem.value ?? "")")
-            return codeItem.value
-        }
-        
-        // Общая проверка параметра code
-        if url.absoluteString.contains("code="),
-           let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-           let codeItem = components.queryItems?.first(where: { $0.name == "code" }) {
-            print("Извлечен код из generic URL: \(codeItem.value ?? "")")
-            return codeItem.value
-        }
-        
-        print("Код не найден в URL: \(url.absoluteString)")
-        return nil
     }
     
     // MARK: - Actions
     @objc private func didTapBackButton() {
         delegate?.webViewViewControllerDidCancel(self)
     }
-    
-    // MARK: - Progress Updates
-    private func updateProgress() {
-        let progress = Float(webView.estimatedProgress)
-        progressView.setProgress(progress, animated: true)
-        progressView.isHidden = isProgressComplete(webView.estimatedProgress)
+}
+
+// MARK: - WebViewViewControllerProtocol
+extension WebViewViewController: WebViewViewControllerProtocol {
+    func load(request: URLRequest) {
+        webView.load(request)
     }
     
-    private func isProgressComplete(_ progress: Double) -> Bool {
-        return fabs(progress - 1.0) <= WebViewConstants.progressComparisonPrecision
+    func setProgressValue(_ newValue: Float) {
+        progressView.setProgress(newValue, animated: true)
+    }
+    
+    func setProgressHidden(_ isHidden: Bool) {
+        progressView.isHidden = isHidden
     }
 }
 
@@ -210,20 +150,11 @@ extension WebViewViewController: WKNavigationDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self else {
-                decisionHandler(.allow)
-                return
-            }
-            
-            if let code = self.code(from: navigationAction) {
-                DispatchQueue.main.async {
-                    self.delegate?.webViewViewController(self, didAuthenticateWithCode: code)
-                }
-                decisionHandler(.cancel)
-            } else {
-                decisionHandler(.allow)
-            }
+        if let code = URLHelper.extractCode(from: navigationAction, redirectURI: Constants.redirectURI) {
+            delegate?.webViewViewController(self, didAuthenticateWithCode: code)
+            decisionHandler(.cancel)
+        } else {
+            decisionHandler(.allow)
         }
     }
 }
