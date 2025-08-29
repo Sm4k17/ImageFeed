@@ -11,7 +11,7 @@ struct PhotoLikeResponse: Decodable {
     let photo: PhotoResult
 }
 
-final class ImagesListService {
+final class ImagesListService: ImagesListServiceProtocol {
     // MARK: - HTTPMethod
     enum HTTPMethod: String {
         case get = "GET"
@@ -201,6 +201,7 @@ final class ImagesListService {
     // MARK: - Public Methods
     func resetPhotos() {
         photos = []
+        lastLoadedPage = nil
         NotificationCenter.default.post(
             name: ImagesListService.didChangeNotification,
             object: self

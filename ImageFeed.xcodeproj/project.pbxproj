@@ -50,6 +50,10 @@
 		F1B6EC902E611FFA00DEB78F /* ProfileImageServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B6EC8F2E611FFA00DEB78F /* ProfileImageServiceProtocol.swift */; };
 		F1B6EC922E61201A00DEB78F /* OAuth2TokenStorageProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B6EC912E61201A00DEB78F /* OAuth2TokenStorageProtocol.swift */; };
 		F1B6EC942E61202F00DEB78F /* ProfileLogoutServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B6EC932E61202F00DEB78F /* ProfileLogoutServiceProtocol.swift */; };
+		F1B6EC9C2E625F4100DEB78F /* ImagesListPresenterProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B6EC9B2E625F4100DEB78F /* ImagesListPresenterProtocol.swift */; };
+		F1B6EC9E2E625F6C00DEB78F /* ImagesListViewProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B6EC9D2E625F6C00DEB78F /* ImagesListViewProtocol.swift */; };
+		F1B6ECA02E625F8B00DEB78F /* ImagesListPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B6EC9F2E625F8B00DEB78F /* ImagesListPresenter.swift */; };
+		F1B6ECA22E625FC900DEB78F /* ImagesListServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B6ECA12E625FC900DEB78F /* ImagesListServiceProtocol.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -106,6 +110,10 @@
 		F1B6EC8F2E611FFA00DEB78F /* ProfileImageServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileImageServiceProtocol.swift; sourceTree = "<group>"; };
 		F1B6EC912E61201A00DEB78F /* OAuth2TokenStorageProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuth2TokenStorageProtocol.swift; sourceTree = "<group>"; };
 		F1B6EC932E61202F00DEB78F /* ProfileLogoutServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileLogoutServiceProtocol.swift; sourceTree = "<group>"; };
+		F1B6EC9B2E625F4100DEB78F /* ImagesListPresenterProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesListPresenterProtocol.swift; sourceTree = "<group>"; };
+		F1B6EC9D2E625F6C00DEB78F /* ImagesListViewProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesListViewProtocol.swift; sourceTree = "<group>"; };
+		F1B6EC9F2E625F8B00DEB78F /* ImagesListPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesListPresenter.swift; sourceTree = "<group>"; };
+		F1B6ECA12E625FC900DEB78F /* ImagesListServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesListServiceProtocol.swift; sourceTree = "<group>"; };
 		F1E353512DFAE06800C3DD32 /* ImageFeed.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ImageFeed.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -167,6 +175,10 @@
 			children = (
 				F1B6EC2F2E5FD88300DEB78F /* ImagesListCell.swift */,
 				F1B6EC302E5FD88300DEB78F /* ImagesListViewController.swift */,
+				F1B6EC9B2E625F4100DEB78F /* ImagesListPresenterProtocol.swift */,
+				F1B6EC9D2E625F6C00DEB78F /* ImagesListViewProtocol.swift */,
+				F1B6EC9F2E625F8B00DEB78F /* ImagesListPresenter.swift */,
+				F1B6ECA12E625FC900DEB78F /* ImagesListServiceProtocol.swift */,
 			);
 			path = ImagesList;
 			sourceTree = "<group>";
@@ -413,6 +425,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F1B6EC9C2E625F4100DEB78F /* ImagesListPresenterProtocol.swift in Sources */,
 				F1B6EC4D2E5FD88300DEB78F /* AuthViewController.swift in Sources */,
 				F1B6EC4E2E5FD88300DEB78F /* AuthViewControllerDelegate.swift in Sources */,
 				F1B6EC902E611FFA00DEB78F /* ProfileImageServiceProtocol.swift in Sources */,
@@ -426,8 +439,10 @@
 				F1B6EC712E60805E00DEB78F /* WebViewPresenterProtocol.swift in Sources */,
 				F1B6EC522E5FD88300DEB78F /* OAuthTokenResponse.swift in Sources */,
 				F1B6EC752E6080BE00DEB78F /* WebViewViewControllerProtocol.swift in Sources */,
+				F1B6ECA22E625FC900DEB78F /* ImagesListServiceProtocol.swift in Sources */,
 				F1B6EC532E5FD88300DEB78F /* WebViewViewController.swift in Sources */,
 				F1B6EC542E5FD88300DEB78F /* WebViewViewControllerDelegate.swift in Sources */,
+				F1B6EC9E2E625F6C00DEB78F /* ImagesListViewProtocol.swift in Sources */,
 				F1B6EC552E5FD88300DEB78F /* UIBlockingProgressHUD.swift in Sources */,
 				F1B6EC562E5FD88300DEB78F /* ImagesListCell.swift in Sources */,
 				F1B6EC8A2E611F6B00DEB78F /* ProfilePresenterProtocol.swift in Sources */,
@@ -451,6 +466,7 @@
 				F1B6EC662E5FD88300DEB78F /* AppDelegate.swift in Sources */,
 				F1B6EC6F2E60801600DEB78F /* URLHelper.swift in Sources */,
 				F1B6EC672E5FD88300DEB78F /* SceneDelegate.swift in Sources */,
+				F1B6ECA02E625F8B00DEB78F /* ImagesListPresenter.swift in Sources */,
 				F1B6EC942E61202F00DEB78F /* ProfileLogoutServiceProtocol.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
