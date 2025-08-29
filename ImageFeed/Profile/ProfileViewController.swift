@@ -90,17 +90,13 @@ final class ProfileViewController: UIViewController {
     }()
     
     // MARK: - Properties
-    private let profileService = ProfileService.shared
-    private let tokenStorage = OAuth2TokenStorage.shared
-    private var profileImageServiceObserver: NSObjectProtocol?
+    var presenter: ProfilePresenterProtocol?
     
     // MARK: - Lifecycle
     override func viewDidLoad() {
         super.viewDidLoad()
         setupProfileUI()
-        updateProfileDetails()
-        setupNotificationObserver()
-        updateAvatar()
+        presenter?.viewDidLoad()
     }
     
     // MARK: - Setup Methods
@@ -147,39 +143,32 @@ final class ProfileViewController: UIViewController {
         ])
     }
     
-    private func setupNotificationObserver() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(updateAvatar),
-            name: ProfileImageService.didChangeNotification,
-            object: nil
-        )
+    // MARK: - Actions
+    @objc private func didTapLogoutButton() {
+        presenter?.didTapLogoutButton()
+    }
+}
+
+// MARK: - ProfileViewControllerProtocol
+extension ProfileViewController: ProfileViewControllerProtocol {
+    func updateProfileDetails(name: String, loginName: String, bio: String) {
+        nameLabel.text = name
+        loginNameLabel.text = loginName
+        descriptionLabel.text = bio
     }
     
-    // MARK: - Private Methods
-    private func updateProfileDetails() {
-        guard let profile = profileService.profile else {
-            setDefaultProfileValues()
-            return
-        }
-        updateProfileUI(with: profile)
-    }
-    
-    private func updateProfileUI(with profile: Profile) {
-        nameLabel.text = profile.name.isEmpty ? ProfileConstants.Texts.defaultName : profile.name
-        loginNameLabel.text = profile.loginName
-        descriptionLabel.text = profile.bio ?? ProfileConstants.Texts.defaultBio
-    }
-    
-    private func setDefaultProfileValues() {
+    func setDefaultProfileValues() {
         nameLabel.text = ProfileConstants.Texts.defaultName
         loginNameLabel.text = ProfileConstants.Texts.defaultLogin
         descriptionLabel.text = ProfileConstants.Texts.defaultBio
     }
     
-    @objc private func updateAvatar() {
-        guard let profileImageURL = ProfileImageService.shared.avatarURL,
-              let url = URL(string: profileImageURL) else { return }
+    func updateAvatar(with url: URL?) {
+        guard let url = url else {
+            avatarImageView.image = UIImage(named: ProfileConstants.Images.avatar)
+            avatarImageView.tintColor = .ypGray
+            return
+        }
         
         let targetSize = CGSize(
             width: ProfileConstants.avatarSize * UIScreen.main.scale,
@@ -200,8 +189,7 @@ final class ProfileViewController: UIViewController {
         )
     }
     
-    // MARK: - Actions
-    @objc private func didTapLogoutButton() {
+    func showLogoutConfirmation() {
         let alert = UIAlertController(
             title: ProfileConstants.Texts.logoutTitle,
             message: ProfileConstants.Texts.logoutMessage,
@@ -211,8 +199,8 @@ final class ProfileViewController: UIViewController {
         alert.addAction(UIAlertAction(
             title: ProfileConstants.Texts.logoutConfirm,
             style: .destructive
-        ) { _ in
-            ProfileLogoutService.shared.logout()
+        ) { [weak self] _ in
+            self?.presenter?.performLogout()
         })
         
         alert.addAction(UIAlertAction(

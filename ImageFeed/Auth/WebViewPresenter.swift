@@ -7,14 +7,19 @@
 
 import Foundation
 
+// MARK: - WebViewPresenter
 final class WebViewPresenter: WebViewPresenterProtocol {
+    
+    // MARK: - Properties
     weak var view: WebViewViewControllerProtocol?
     private let authConfiguration: AuthConfiguration
     
+    // MARK: - Initialization
     init(authConfiguration: AuthConfiguration = .standard) {
         self.authConfiguration = authConfiguration
     }
     
+    // MARK: - Public Methods
     func viewDidLoad() {
         guard let request = URLHelper.makeAuthRequest(authConfiguration: authConfiguration) else {
             print("Invalid auth request")
@@ -29,6 +34,7 @@ final class WebViewPresenter: WebViewPresenterProtocol {
         view?.setProgressHidden(isProgressComplete(newValue))
     }
     
+    // MARK: - Private Methods
     private func isProgressComplete(_ progress: Double) -> Bool {
         abs(progress - 1.0) <= 0.0001
     }
