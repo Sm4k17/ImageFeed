@@ -21,7 +21,7 @@ final class WebViewPresenter: WebViewPresenterProtocol {
     
     // MARK: - Public Methods
     func viewDidLoad() {
-        guard let request = URLHelper.makeAuthRequest(authConfiguration: authConfiguration) else {
+        guard let request = AuthHelper.makeAuthRequest(authConfiguration: authConfiguration) else {
             print("Invalid auth request")
             return
         }

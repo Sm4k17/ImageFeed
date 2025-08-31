@@ -107,14 +107,14 @@ final class WebViewTests: XCTestCase {
         XCTAssertEqual(viewController.lastProgressHidden, false, "Progress should not be hidden when incomplete")
     }
     
-    // MARK: - URLHelper Tests
+    // MARK: - AuthHelper Tests
     
-    func testURLHelperCreatesValidAuthURL() {
+    func testAuthHelperCreatesValidAuthURL() {
         // given
         let configuration = AuthConfiguration.standard
         
         // when
-        let url = URLHelper.makeAuthURL(authConfiguration: configuration)
+        let url = AuthHelper.makeAuthURL(authConfiguration: configuration)
         
         // then
         XCTAssertNotNil(url, "Auth URL should not be nil")
@@ -128,78 +128,76 @@ final class WebViewTests: XCTestCase {
         }
     }
     
-    func testURLHelperCreatesValidAuthRequest() {
+    func testAuthHelperCreatesValidAuthRequest() {
         // given
         let configuration = AuthConfiguration.standard
         
         // when
-        let request = URLHelper.makeAuthRequest(authConfiguration: configuration)
+        let request = AuthHelper.makeAuthRequest(authConfiguration: configuration)
         
         // then
         XCTAssertNotNil(request, "Auth request should not be nil")
         XCTAssertNotNil(request?.url, "Request URL should not be nil")
     }
     
-    func testURLHelperExtractsCodeFromRedirectURI() {
+    func testCodeFromURL() {
         // given
-        let testCode = "test_auth_code_123"
-        let redirectURI = Constants.redirectURI
-        let testURLString = "\(redirectURI)?code=\(testCode)"
-        let testURL = URL(string: testURLString)!
+        let testCode = "test_code_123"
+        let testURL = URL(string: "\(Constants.redirectURI)?code=\(testCode)")!
         
         // when
-        let extractedCode = URLHelper.extractCode(from: testURL, redirectURI: redirectURI)
+        let extractedCode = AuthHelper.extractCode(from: testURL, redirectURI: Constants.redirectURI)
         
         // then
-        XCTAssertEqual(extractedCode, testCode, "Extracted code should match")
+        XCTAssertEqual(extractedCode, testCode)
     }
     
-    func testURLHelperExtractsCodeFromNativeURL() {
+    func testAuthHelperExtractsCodeFromNativeURL() {
         // given
         let testCode = "test_auth_code_456"
         let testURLString = "https://unsplash.com/oauth/authorize/native?code=\(testCode)"
         let testURL = URL(string: testURLString)!
         
         // when
-        let extractedCode = URLHelper.extractCode(from: testURL, redirectURI: Constants.redirectURI)
+        let extractedCode = AuthHelper.extractCode(from: testURL, redirectURI: Constants.redirectURI)
         
         // then
         XCTAssertEqual(extractedCode, testCode, "Extracted code should match")
     }
     
-    func testURLHelperExtractsCodeFromGenericURL() {
+    func testAuthHelperExtractsCodeFromGenericURL() {
         // given
         let testCode = "test_auth_code_789"
         let testURLString = "https://example.com/auth?code=\(testCode)&other=param"
         let testURL = URL(string: testURLString)!
         
         // when
-        let extractedCode = URLHelper.extractCode(from: testURL, redirectURI: Constants.redirectURI)
+        let extractedCode = AuthHelper.extractCode(from: testURL, redirectURI: Constants.redirectURI)
         
         // then
         XCTAssertEqual(extractedCode, testCode, "Extracted code should match")
     }
     
-    func testURLHelperReturnsNilForInvalidURL() {
+    func testAuthHelperReturnsNilForInvalidURL() {
         // given
         let testURLString = "https://example.com/no_code_here"
         let testURL = URL(string: testURLString)!
         
         // when
-        let extractedCode = URLHelper.extractCode(from: testURL, redirectURI: Constants.redirectURI)
+        let extractedCode = AuthHelper.extractCode(from: testURL, redirectURI: Constants.redirectURI)
         
         // then
         XCTAssertNil(extractedCode, "Should return nil for URL without code")
     }
     
-    func testURLHelperExtractsCodeFromURLWithMultipleParams() {
+    func testAuthHelperExtractsCodeFromURLWithMultipleParams() {
         // given
         let testCode = "test_code_multiple"
         let testURLString = "\(Constants.redirectURI)?state=123&code=\(testCode)&scope=public"
         let testURL = URL(string: testURLString)!
         
         // when
-        let extractedCode = URLHelper.extractCode(from: testURL, redirectURI: Constants.redirectURI)
+        let extractedCode = AuthHelper.extractCode(from: testURL, redirectURI: Constants.redirectURI)
         
         // then
         XCTAssertEqual(extractedCode, testCode, "Should extract code from URL with multiple parameters")

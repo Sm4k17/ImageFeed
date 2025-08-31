@@ -1,5 +1,5 @@
 //
-//  URLHelper.swift
+//  AuthHelper.swift
 //  ImageFeed
 //
 //  Created by Рустам Ханахмедов on 28.08.2025.
@@ -8,7 +8,7 @@
 import Foundation
 import WebKit
 
-enum URLHelper {
+enum AuthHelper {
     static func makeAuthURL(authConfiguration: AuthConfiguration) -> URL? {
         guard var urlComponents = URLComponents(string: authConfiguration.authURLString) else {
             return nil

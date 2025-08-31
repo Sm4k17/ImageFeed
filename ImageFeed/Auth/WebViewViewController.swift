@@ -30,7 +30,7 @@ final class WebViewViewController: UIViewController {
     private lazy var webView: WKWebView = {
         let webView = WKWebView()
         webView.tintColor = .systemBlue
-        webView.accessibilityIdentifier = "webView"
+        webView.accessibilityIdentifier = "UnsplashWebView"
         return webView
     }()
     
@@ -150,7 +150,7 @@ extension WebViewViewController: WKNavigationDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
-        if let code = URLHelper.extractCode(from: navigationAction, redirectURI: Constants.redirectURI) {
+        if let code = AuthHelper.extractCode(from: navigationAction, redirectURI: Constants.redirectURI) {
             delegate?.webViewViewController(self, didAuthenticateWithCode: code)
             decisionHandler(.cancel)
         } else {

@@ -129,7 +129,9 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
         cell.cellImage.image = placeholderImage
         
         // Настройка загрузки изображения
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
+            guard self != nil else { return }
+            
             if let url = URL(string: photo.urls.regular) {
                 cell.cellImage.kf.setImage(
                     with: url,
@@ -140,15 +142,14 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
                         .cacheOriginalImage,
                         .keepCurrentImageWhileLoading
                     ]
-                ) { result in
-                    DispatchQueue.main.async {
-                        switch result {
-                        case .success:
-                            cell.cellImage.contentMode = .scaleAspectFill
-                        case .failure:
-                            cell.cellImage.contentMode = .center
-                            cell.cellImage.image = placeholderImage
-                        }
+                ) { [weak cell] result in
+                    guard let cell = cell else { return }
+                    switch result {
+                    case .success:
+                        cell.cellImage.contentMode = .scaleAspectFill
+                    case .failure:
+                        cell.cellImage.contentMode = .center
+                        cell.cellImage.image = placeholderImage
                     }
                 }
             }

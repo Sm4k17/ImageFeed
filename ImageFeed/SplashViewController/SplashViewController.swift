@@ -44,6 +44,14 @@ final class SplashViewController: UIViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        
+        // Для UI-тестов очищаем токен и показываем экран авторизации
+        if ProcessInfo.processInfo.arguments.contains("TestMode") {
+            OAuth2TokenStorage.shared.token = nil
+            showAuthViewController()
+            return
+        }
+        
         checkAuthStatus()
     }
     
