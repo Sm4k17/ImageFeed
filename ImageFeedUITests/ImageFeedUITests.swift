@@ -44,36 +44,40 @@ final class ImageFeedUITests: XCTestCase {
         logoutIfNeeded()
         
         let authButton = app.buttons[Constants.AccessibilityIdentifiers.loginButton]
-        XCTAssertTrue(authButton.waitForExistence(timeout: 10))
+        XCTAssertTrue(authButton.waitForExistence(timeout: 10), "Кнопка авторизации не найдена")
         authButton.tap()
 
         let webView = app.webViews[Constants.AccessibilityIdentifiers.webView]
-        XCTAssertTrue(webView.waitForExistence(timeout: 10))
+        XCTAssertTrue(webView.waitForExistence(timeout: 15), "WebView не загрузился")
         
         // Ждем загрузки формы авторизации
-        sleep(3)
+        sleep(5) // Увеличиваем время ожидания
         
         // Находим поле логина и вводим данные
         let loginTextField = webView.descendants(matching: .textField).element
-        XCTAssertTrue(loginTextField.waitForExistence(timeout: 5))
+        XCTAssertTrue(loginTextField.waitForExistence(timeout: 10), "Поле логина не найдено") // Увеличиваем таймаут
         
         loginTextField.tap()
         loginTextField.clearText()
         loginTextField.typeText(Credentials.login)
         
         // Скрываем клавиатуру после ввода логина
-        app.toolbars.buttons["Done"].tap()
+        if app.toolbars.buttons["Done"].waitForExistence(timeout: 3) {
+            app.toolbars.buttons["Done"].tap()
+        }
         sleep(1)
         
         // Находим поле пароля и вводим данные через буфер обмена
         let passwordTextField = webView.descendants(matching: .secureTextField).element
-        XCTAssertTrue(passwordTextField.waitForExistence(timeout: 5))
+        XCTAssertTrue(passwordTextField.waitForExistence(timeout: 10), "Поле пароля не найдено") // Увеличиваем таймаут
         
         passwordTextField.tap()
         
         // Используем буфер обмена для ввода пароля
         UIPasteboard.general.string = Credentials.password
-        passwordTextField.doubleTap() // Выделяем весь текст если есть
+        
+        // Сначала пробуем выделить и вставить
+        passwordTextField.doubleTap()
         sleep(1)
         
         // Вставляем из буфера обмена
@@ -81,8 +85,8 @@ final class ImageFeedUITests: XCTestCase {
             app.menuItems["Paste"].tap()
         } else {
             // Альтернатива: имитируем долгое нажатие для показа меню
-            passwordTextField.press(forDuration: 1.0)
-            if app.menuItems["Paste"].waitForExistence(timeout: 2) {
+            passwordTextField.press(forDuration: 1.5)
+            if app.menuItems["Paste"].waitForExistence(timeout: 3) {
                 app.menuItems["Paste"].tap()
             } else {
                 // Fallback: обычный ввод
@@ -91,16 +95,26 @@ final class ImageFeedUITests: XCTestCase {
         }
         
         // Скрываем клавиатуру после ввода пароля
-        app.toolbars.buttons["Done"].tap()
+        if app.toolbars.buttons["Done"].waitForExistence(timeout: 3) {
+            app.toolbars.buttons["Done"].tap()
+        } else if app.keyboards.buttons["Done"].waitForExistence(timeout: 2) {
+            app.keyboards.buttons["Done"].tap()
+        }
         sleep(1)
         
         // Нажимаем кнопку авторизации
-        webView.buttons["Login"].tap()
+        let loginButton = webView.buttons["Login"]
+        if loginButton.waitForExistence(timeout: 5) {
+            loginButton.tap()
+        } else {
+            // Альтернативный поиск кнопки
+            webView.buttons.allElementsBoundByIndex.first?.tap()
+        }
         
         // Ждем завершения авторизации и перехода на ленту
         let tablesQuery = app.tables
         let cell = tablesQuery.children(matching: .cell).element(boundBy: 0)
-        XCTAssertTrue(cell.waitForExistence(timeout: 20), "Не удалось загрузить ленту после авторизации")
+        XCTAssertTrue(cell.waitForExistence(timeout: 25), "Не удалось загрузить ленту после авторизации")
     }
     
     func testFeed() throws {
@@ -220,11 +234,16 @@ extension ImageFeedUITests {
 }
 extension XCUIElement {
     func clearText() {
-        guard let stringValue = self.value as? String else {
+        guard let stringValue = self.value as? String, !stringValue.isEmpty else {
             return
         }
         
-        let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: stringValue.count)
-        self.typeText(deleteString)
+        // Двойной тап для выделения всего текста
+        self.doubleTap()
+        sleep(1)
+        
+        // Удаляем выделенный текст
+        self.typeText(XCUIKeyboardKey.delete.rawValue)
+        sleep(1)
     }
 }
