@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F16F7AD22E65E32100B56C3E /* ImagesListCellProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = F16F7AD12E65E32100B56C3E /* ImagesListCellProtocol.swift */; };
 		F188BEB92E32EB820052D5A4 /* ProgressHUD in Frameworks */ = {isa = PBXBuildFile; productRef = F188BEB82E32EB820052D5A4 /* ProgressHUD */; };
 		F188BEC92E37E7F10052D5A4 /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = F188BEC82E37E7F10052D5A4 /* Kingfisher */; };
 		F1B6EC4D2E5FD88300DEB78F /* AuthViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1B6EC242E5FD88300DEB78F /* AuthViewController.swift */; };
@@ -74,6 +75,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		F16F7AD12E65E32100B56C3E /* ImagesListCellProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagesListCellProtocol.swift; sourceTree = "<group>"; };
 		F1B6EC242E5FD88300DEB78F /* AuthViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewController.swift; sourceTree = "<group>"; };
 		F1B6EC252E5FD88300DEB78F /* AuthViewControllerDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewControllerDelegate.swift; sourceTree = "<group>"; };
 		F1B6EC262E5FD88300DEB78F /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
@@ -199,6 +201,7 @@
 				F1B6EC9D2E625F6C00DEB78F /* ImagesListViewProtocol.swift */,
 				F1B6EC9F2E625F8B00DEB78F /* ImagesListPresenter.swift */,
 				F1B6ECA12E625FC900DEB78F /* ImagesListServiceProtocol.swift */,
+				F16F7AD12E65E32100B56C3E /* ImagesListCellProtocol.swift */,
 			);
 			path = ImagesList;
 			sourceTree = "<group>";
@@ -532,6 +535,7 @@
 				F1B6EC672E5FD88300DEB78F /* SceneDelegate.swift in Sources */,
 				F1B6ECA02E625F8B00DEB78F /* ImagesListPresenter.swift in Sources */,
 				F1B6EC942E61202F00DEB78F /* ProfileLogoutServiceProtocol.swift in Sources */,
+				F16F7AD22E65E32100B56C3E /* ImagesListCellProtocol.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

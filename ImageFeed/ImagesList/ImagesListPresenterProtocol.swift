@@ -16,6 +16,6 @@ protocol ImagesListPresenterProtocol: AnyObject {
     func photo(at index: Int) -> Photo? // Добавляем этот метод
     func calculateCellHeight(for indexPath: IndexPath, tableViewWidth: CGFloat) -> CGFloat
     func didSelectPhoto(at index: Int)
-    func configureCell(_ cell: ImagesListCell, at indexPath: IndexPath)
-    func didTapLikeButton(at index: Int, cell: ImagesListCell)
+    func configureCell(_ cell: ImagesListCellProtocol, at indexPath: IndexPath)
+    func didTapLikeButton(at index: Int, cell: ImagesListCellProtocol)
 }

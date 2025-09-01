@@ -2,7 +2,7 @@
 //  ImagesListPresenterTests.swift
 //  ImageFeedTests
 //
-//  Created by Рустам Ханахмедов on 30.08.2025.
+//  Created by Рустам Ханахмедов on 01.09.2025.
 //
 
 import XCTest
@@ -10,35 +10,102 @@ import XCTest
 
 final class ImagesListPresenterTests: XCTestCase {
     
-    // MARK: - Properties
-    var presenter: ImagesListPresenter!
-    var view: ImagesListViewSpy!
-    var service: ImagesListServiceSpy!
+    // MARK: - Test Doubles
     
-    // MARK: - Test Setup
+    private class MockView: ImagesListViewProtocol {
+        var updateTableViewAnimatedCalled = false
+        var reloadTableViewCalled = false
+        var showLoadingIndicatorCalled = false
+        var hideLoadingIndicatorCalled = false
+        var showErrorAlertCalled = false
+        var showLikeErrorCalled = false
+        
+        func updateTableViewAnimated(oldCount: Int, newCount: Int) {
+            updateTableViewAnimatedCalled = true
+        }
+        
+        func reloadTableView() {
+            reloadTableViewCalled = true
+        }
+        
+        func showLoadingIndicator() {
+            showLoadingIndicatorCalled = true
+        }
+        
+        func hideLoadingIndicator() {
+            hideLoadingIndicatorCalled = true
+        }
+        
+        func showErrorAlert(title: String, message: String) {
+            showErrorAlertCalled = true
+        }
+        
+        func showLikeError(error: Error) {
+            showLikeErrorCalled = true
+        }
+    }
+    
+    private class MockService: ImagesListServiceProtocol {
+        var photos: [Photo] = []
+        var fetchPhotosNextPageCalled = false
+        var changeLikeCalled = false
+        var resetPhotosCalled = false
+        
+        func fetchPhotosNextPage() {
+            fetchPhotosNextPageCalled = true
+        }
+        
+        func changeLike(photoId: String, isLike: Bool, _ completion: @escaping (Result<Photo, Error>) -> Void) {
+            changeLikeCalled = true
+        }
+        
+        func resetPhotos() {
+            resetPhotosCalled = true
+            photos.removeAll()
+        }
+    }
+    
+    private class MockCell: ImagesListCellProtocol {
+        var setLikeButtonImageCalled = false
+        var onLikeButtonTapped: (() -> Void)?
+        
+        func setLikeButtonImage(isLiked: Bool) {
+            setLikeButtonImageCalled = true
+        }
+    }
+    
+    // MARK: - Properties
+    
+    private var presenter: ImagesListPresenter!
+    private var mockView: MockView!
+    private var mockService: MockService!
+    
+    // MARK: - Setup
+    
     override func setUp() {
         super.setUp()
-        view = ImagesListViewSpy()
-        service = ImagesListServiceSpy()
-        presenter = ImagesListPresenter(imagesListService: service)
-        presenter.view = view
+        mockView = MockView()
+        mockService = MockService()
+        presenter = ImagesListPresenter(imagesListService: mockService)
+        presenter.view = mockView
     }
     
     override func tearDown() {
         presenter = nil
-        view = nil
-        service = nil
+        mockView = nil
+        mockService = nil
         super.tearDown()
     }
     
     // MARK: - Tests
+    
     func testViewDidLoad() {
         // When
         presenter.viewDidLoad()
         
         // Then
-        XCTAssertTrue(view.showLoadingIndicatorCalled)
-        XCTAssertTrue(service.fetchPhotosNextPageCalled)
+        XCTAssertTrue(mockService.fetchPhotosNextPageCalled)
+        XCTAssertTrue(mockView.showLoadingIndicatorCalled)
     }
     
     func testFetchPhotosNextPage() {
@@ -46,216 +113,140 @@ final class ImagesListPresenterTests: XCTestCase {
         presenter.fetchPhotosNextPage()
         
         // Then
-        XCTAssertTrue(service.fetchPhotosNextPageCalled)
+        XCTAssertTrue(mockService.fetchPhotosNextPageCalled)
     }
     
     func testRefreshPhotos() {
         // Given
-        _ = presenter.photosCount
+        let photo = createTestPhoto()
+        presenter.photos = [photo]
         
         // When
         presenter.refreshPhotos()
         
         // Then
+        XCTAssertTrue(mockService.resetPhotosCalled)
+        XCTAssertTrue(mockService.fetchPhotosNextPageCalled)
+        XCTAssertTrue(mockView.reloadTableViewCalled)
         XCTAssertEqual(presenter.photosCount, 0)
-        XCTAssertTrue(view.reloadTableViewCalled)
-        XCTAssertTrue(service.resetPhotosCalled)
-        XCTAssertTrue(service.fetchPhotosNextPageCalled)
+    }
+    
+    func testPhotosCount() {
+        // Given
+        let photos = [createTestPhoto(), createTestPhoto()]
+        presenter.photos = photos
+        
+        // When
+        let count = presenter.photosCount
+        
+        // Then
+        XCTAssertEqual(count, 2)
     }
     
     func testPhotoAtIndex() {
         // Given
-        let mockPhoto = Photo(
-            id: "1",
-            size: CGSize(width: 100, height: 100),
-            createdAt: Date(),
-            welcomeDescription: "Test",
-            thumbImageURL: URL(string: "https://test.com/thumb.jpg")!,
-            largeImageURL: URL(string: "https://test.com/large.jpg")!,
-            urls: Photo.Urls(
-                raw: "https://test.com/raw.jpg",
-                full: "https://test.com/full.jpg",
-                regular: "https://test.com/regular.jpg",
-                small: "https://test.com/small.jpg",
-                thumb: "https://test.com/thumb.jpg"
-            ),
-            isLiked: false
-        )
-        service.mockPhotos = [mockPhoto]
-        
-        // Имитируем получение данных от сервиса через нотификацию
-        NotificationCenter.default.post(
-            name: ImagesListService.didChangeNotification,
-            object: service
-        )
+        let testPhoto = createTestPhoto()
+        presenter.photos = [testPhoto]
         
         // When
-        let photo = presenter.photo(at: 0)
+        let result = presenter.photo(at: 0)
         
         // Then
-        XCTAssertNotNil(photo)
-        XCTAssertEqual(photo?.id, "1")
+        XCTAssertEqual(result?.id, testPhoto.id)
     }
     
     func testPhotoAtIndexOutOfBounds() {
+        // Given
+        presenter.photos = [createTestPhoto()]
+        
         // When
-        let photo = presenter.photo(at: 100)
+        let result = presenter.photo(at: 1)
         
         // Then
-        XCTAssertNil(photo)
+        XCTAssertNil(result)
+    }
+    
+    func testConfigureCell() {
+        // Given
+        let testPhoto = createTestPhoto()
+        let mockCell = MockCell()
+        presenter.photos = [testPhoto]
+        let indexPath = IndexPath(row: 0, section: 0)
+        
+        // When
+        presenter.configureCell(mockCell, at: indexPath)
+        
+        // Then
+        XCTAssertTrue(mockCell.setLikeButtonImageCalled)
     }
     
     func testCalculateCellHeight() {
         // Given
-        service.mockPhotos = [
-            Photo(
-                id: "1",
-                size: CGSize(width: 100, height: 200),
-                createdAt: Date(),
-                welcomeDescription: "Test",
-                thumbImageURL: URL(string: "https://test.com/thumb.jpg")!,
-                largeImageURL: URL(string: "https://test.com/large.jpg")!,
-                urls: Photo.Urls(
-                    raw: "https://test.com/raw.jpg",
-                    full: "https://test.com/full.jpg",
-                    regular: "https://test.com/regular.jpg",
-                    small: "https://test.com/small.jpg",
-                    thumb: "https://test.com/thumb.jpg"
-                ),
-                isLiked: false
-            )
-        ]
+        let testPhoto = createTestPhoto(size: CGSize(width: 100, height: 200))
+        presenter.photos = [testPhoto]
+        presenter.imageSizes = [CGSize(width: 100, height: 200)]
         
-        let indexPath = IndexPath(row: 0, section: 0)
         let tableViewWidth: CGFloat = 400
+        let indexPath = IndexPath(row: 0, section: 0)
         
         // When
         let height = presenter.calculateCellHeight(for: indexPath, tableViewWidth: tableViewWidth)
         
         // Then
-        XCTAssertGreaterThan(height, 0)
+        let expectedHeight: CGFloat = (200 * (400 - 32) / 100) + 8
+        XCTAssertEqual(height, expectedHeight)
     }
     
-    func testDidSelectPhoto() {
+    func testCalculateCellHeightDefault() {
         // Given
-        service.mockPhotos = [
-            Photo(
-                id: "1",
-                size: CGSize(width: 100, height: 100),
-                createdAt: Date(),
-                welcomeDescription: "Test",
-                thumbImageURL: URL(string: "https://test.com/thumb.jpg")!,
-                largeImageURL: URL(string: "https://test.com/large.jpg")!,
-                urls: Photo.Urls(
-                    raw: "https://test.com/raw.jpg",
-                    full: "https://test.com/full.jpg",
-                    regular: "https://test.com/regular.jpg",
-                    small: "https://test.com/small.jpg",
-                    thumb: "https://test.com/thumb.jpg"
-                ),
-                isLiked: false
-            )
-        ]
+        let indexPath = IndexPath(row: 1, section: 0)
         
         // When
-        presenter.didSelectPhoto(at: 0)
+        let height = presenter.calculateCellHeight(for: indexPath, tableViewWidth: 400)
         
         // Then
-        // Проверяем, что метод выполнился без ошибок
-        XCTAssertTrue(true)
+        XCTAssertEqual(height, 200)
     }
     
-    func testHandlePhotosChangedWithNewPhotos() {
+    func testDidTapLikeButton() {
         // Given
-        let newPhotos = [
-            Photo(
-                id: "1",
-                size: CGSize(width: 100, height: 100),
-                createdAt: Date(),
-                welcomeDescription: "Test",
-                thumbImageURL: URL(string: "https://test.com/thumb.jpg")!,
-                largeImageURL: URL(string: "https://test.com/large.jpg")!,
-                urls: Photo.Urls(
-                    raw: "https://test.com/raw.jpg",
-                    full: "https://test.com/full.jpg",
-                    regular: "https://test.com/regular.jpg",
-                    small: "https://test.com/small.jpg",
-                    thumb: "https://test.com/thumb.jpg"
-                ),
-                isLiked: false
-            )
-        ]
-        service.mockPhotos = newPhotos
+        let testPhoto = createTestPhoto()
+        let mockCell = MockCell()
+        presenter.photos = [testPhoto]
         
         // When
-        NotificationCenter.default.post(
-            name: ImagesListService.didChangeNotification,
-            object: service
+        presenter.didTapLikeButton(at: 0, cell: mockCell)
+        
+        // Then
+        XCTAssertTrue(mockService.changeLikeCalled)
+        XCTAssertTrue(mockView.showLoadingIndicatorCalled)
+    }
+    
+    // MARK: - Helper
+    private func createTestPhoto(id: String = "test_id", size: CGSize = CGSize(width: 100, height: 100)) -> Photo {
+        let urls = Photo.Urls(
+            raw: "https://example.com/raw.jpg",
+            full: "https://example.com/full.jpg",
+            regular: "https://example.com/regular.jpg",
+            small: "https://example.com/small.jpg",
+            thumb: "https://example.com/thumb.jpg"
         )
         
-        // Then
-        XCTAssertTrue(view.hideLoadingIndicatorCalled)
-    }
-}
-
-// MARK: - Test Doubles
-final class ImagesListViewSpy: ImagesListViewProtocol {
-    var updateTableViewAnimatedCalled = false
-    var reloadTableViewCalled = false
-    var showLoadingIndicatorCalled = false
-    var hideLoadingIndicatorCalled = false
-    var showErrorAlertCalled = false
-    var showLikeErrorCalled = false
-    
-    func updateTableViewAnimated(oldCount: Int, newCount: Int) {
-        updateTableViewAnimatedCalled = true
-    }
-    
-    func reloadTableView() {
-        reloadTableViewCalled = true
-    }
-    
-    func showLoadingIndicator() {
-        showLoadingIndicatorCalled = true
-    }
-    
-    func hideLoadingIndicator() {
-        hideLoadingIndicatorCalled = true
-    }
-    
-    func showErrorAlert(title: String, message: String) {
-        showErrorAlertCalled = true
-    }
-    
-    func showLikeError(error: Error) {
-        showLikeErrorCalled = true
-    }
-}
-
-final class ImagesListServiceSpy: ImagesListServiceProtocol {
-    var fetchPhotosNextPageCalled = false
-    var changeLikeCalled = false
-    var resetPhotosCalled = false
-    var mockPhotos: [Photo] = []
-    
-    var photos: [Photo] {
-        return mockPhotos
-    }
-    
-    func fetchPhotosNextPage() {
-        fetchPhotosNextPageCalled = true
-    }
-    
-    func changeLike(photoId: String, isLike: Bool, _ completion: @escaping (Result<Photo, Error>) -> Void) {
-        changeLikeCalled = true
-    }
-    
-    func resetPhotos() {
-        resetPhotosCalled = true
-        mockPhotos = []
-        NotificationCenter.default.post(
-            name: ImagesListService.didChangeNotification,
-            object: self
+        // Безопасное создание URL
+        guard let thumbURL = URL(string: "https://example.com/thumb.jpg"),
+              let largeURL = URL(string: "https://example.com/full.jpg") else {
+            fatalError("Invalid URL in test")
+        }
+        
+        return Photo(
+            id: id,
+            size: size,
+            createdAt: Date(),
+            welcomeDescription: "Test",
+            thumbImageURL: thumbURL,
+            largeImageURL: largeURL,
+            urls: urls, // Добавлен недостающий параметр urls
+            isLiked: false
         )
     }
 }

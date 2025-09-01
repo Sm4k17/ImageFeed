@@ -23,7 +23,7 @@ private enum ImagesListCellConstants {
 }
 
 // MARK: - ImagesListCell
-final class ImagesListCell: UITableViewCell {
+final class ImagesListCell: UITableViewCell, ImagesListCellProtocol {
     static let reuseIdentifier = "ImagesListCell"
     
     // MARK: - UI Elements

@@ -12,8 +12,8 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
     // MARK: - Properties
     weak var view: ImagesListViewProtocol?
     private let imagesListService: ImagesListServiceProtocol
-    private var photos: [Photo] = []
-    private var imageSizes: [CGSize] = []
+    var photos: [Photo] = []
+    var imageSizes: [CGSize] = []
     
     // Статический DateFormatter для всего класса
     private static let dateFormatter: DateFormatter = {
@@ -88,14 +88,17 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
         }
     }
     
-    func didTapLikeButton(at index: Int, cell: ImagesListCell) {
+    func didTapLikeButton(at index: Int, cell: ImagesListCellProtocol) {
         guard var photo = photo(at: index) else { return }
         
         let newLikeStatus = !photo.isLiked
         photo.isLiked = newLikeStatus
         photos[index] = photo
         cell.setLikeButtonImage(isLiked: newLikeStatus)
-        cell.likeButton.isUserInteractionEnabled = false
+        // Если ячейка является ImagesListCell, отключаем кнопку
+        if let imagesListCell = cell as? ImagesListCell {
+            imagesListCell.likeButton.isUserInteractionEnabled = false
+        }
         
         view?.showLoadingIndicator()
         
@@ -104,7 +107,10 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
             
             DispatchQueue.main.async {
                 self.view?.hideLoadingIndicator()
-                cell.likeButton.isUserInteractionEnabled = true
+                // Если ячейка является ImagesListCell, включаем кнопку обратно
+                if let imagesListCell = cell as? ImagesListCell {
+                    imagesListCell.likeButton.isUserInteractionEnabled = true
+                }
                 
                 switch result {
                 case .success(let updatedPhoto):
@@ -121,14 +127,22 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
         }
     }
     
-    func configureCell(_ cell: ImagesListCell, at indexPath: IndexPath) {
+    func configureCell(_ cell: ImagesListCellProtocol, at indexPath: IndexPath) {
         guard indexPath.row < photos.count else { return }
         let photo = photos[indexPath.row]
         
         // Используем статический форматтер
-        cell.dateLabel.text = photo.createdAt.map { ImagesListPresenter.dateFormatter.string(from: $0) }
+        if let cell = cell as? ImagesListCell {
+            cell.dateLabel.text = photo.createdAt.map { ImagesListPresenter.dateFormatter.string(from: $0) }
+        }
         cell.setLikeButtonImage(isLiked: photo.isLiked)
     }
+    
+#if DEBUG
+    func setPhotosForTesting(_ photos: [Photo]) {
+        self.photos = photos
+    }
+#endif
     
     // MARK: - Private Methods
     private func setupNotificationObserver() {
