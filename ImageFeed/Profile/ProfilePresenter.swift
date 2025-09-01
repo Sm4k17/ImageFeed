@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Kingfisher
 
 // MARK: - ProfilePresenter
 final class ProfilePresenter: ProfilePresenterProtocol {

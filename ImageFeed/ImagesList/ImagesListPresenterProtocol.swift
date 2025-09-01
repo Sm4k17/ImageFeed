@@ -13,7 +13,7 @@ protocol ImagesListPresenterProtocol: AnyObject {
     func viewDidLoad()
     func fetchPhotosNextPage()
     func refreshPhotos()
-    func photo(at index: Int) -> Photo?
+    func photo(at index: Int) -> Photo? // Добавляем этот метод
     func calculateCellHeight(for indexPath: IndexPath, tableViewWidth: CGFloat) -> CGFloat
     func didSelectPhoto(at index: Int)
     func configureCell(_ cell: ImagesListCell, at indexPath: IndexPath)

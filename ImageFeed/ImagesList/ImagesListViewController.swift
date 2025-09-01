@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import Kingfisher
 
 // MARK: - Constants
 private enum ImagesListConstants {
@@ -84,15 +85,6 @@ final class ImagesListViewController: UIViewController {
         presenter.refreshPhotos()
     }
     
-    @objc private func didTapLikeButton(_ sender: UIButton) {
-        guard let cell = sender.superview?.superview as? ImagesListCell,
-              let indexPath = tableView.indexPath(for: cell) else {
-            return
-        }
-        
-        presenter.didTapLikeButton(at: indexPath.row, cell: cell)
-    }
-    
     private func showLikeErrorAlert(error: Error) {
         let alert = UIAlertController(
             title: ImagesListConstants.likeErrorAlertTitle,
@@ -104,6 +96,21 @@ final class ImagesListViewController: UIViewController {
             style: .default
         ))
         present(alert, animated: true)
+    }
+    
+    // MARK: - Private Methods
+    private func configureCell(_ cell: ImagesListCell, at indexPath: IndexPath) {
+        presenter.configureCell(cell, at: indexPath)
+        
+        guard let photo = presenter.photo(at: indexPath.row) else { return }
+        // Настраиваем обработчик нажатия на лайк
+        cell.onLikeButtonTapped = { [weak self] in
+            self?.presenter.didTapLikeButton(at: indexPath.row, cell: cell)
+        }
+        
+        let placeholderImage = UIImage(named: "stab_icon")
+        let url = URL(string: photo.urls.regular)
+        cell.setImage(from: url, placeholder: placeholderImage)
     }
 }
 
@@ -155,8 +162,7 @@ extension ImagesListViewController: UITableViewDataSource {
             return UITableViewCell()
         }
         
-        presenter.configureCell(cell, at: indexPath)
-        cell.likeButton.addTarget(self, action: #selector(didTapLikeButton), for: .touchUpInside)
+        configureCell(cell, at: indexPath)
         return cell
     }
 }

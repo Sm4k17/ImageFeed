@@ -6,7 +6,6 @@
 //
 
 import UIKit
-import Kingfisher
 
 final class ImagesListPresenter: ImagesListPresenterProtocol {
     
@@ -15,6 +14,16 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
     private let imagesListService: ImagesListServiceProtocol
     private var photos: [Photo] = []
     private var imageSizes: [CGSize] = []
+    
+    // Статический DateFormatter для всего класса
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ru_RU")
+        formatter.dateStyle = .long
+        formatter.timeStyle = .none
+        formatter.doesRelativeDateFormatting = false
+        return formatter
+    }()
     
     var photosCount: Int {
         return photos.count
@@ -41,12 +50,9 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
     }
     
     func refreshPhotos() {
-        // Очищаем массивы и перезагружаем таблицу сразу
         photos.removeAll()
         imageSizes.removeAll()
         view?.reloadTableView()
-        
-        // Сбрасываем сервис и загружаем заново
         imagesListService.resetPhotos()
         fetchPhotosNextPage()
     }
@@ -57,17 +63,17 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
     }
     
     func calculateCellHeight(for indexPath: IndexPath, tableViewWidth: CGFloat) -> CGFloat {
-        let imageViewWidth = tableViewWidth - 16 - 16 // imageInsets left + right
+        let imageViewWidth = tableViewWidth - 16 - 16
         
         guard indexPath.row < imageSizes.count else {
-            return 200 // defaultCellHeight
+            return 200
         }
         
         let imageSize = imageSizes[indexPath.row]
         let scaleRatio = imageViewWidth / imageSize.width
         let imageViewHeight = imageSize.height * scaleRatio
         
-        return imageViewHeight + 4 + 4 // imageInsets top + bottom
+        return imageViewHeight + 4 + 4
     }
     
     func didSelectPhoto(at index: Int) {
@@ -77,7 +83,6 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
         singleImageVC.imageURL = photo.largeImageURL
         singleImageVC.modalPresentationStyle = .fullScreen
         
-        // Получаем текущий UIViewController для презентации
         if let viewController = view as? UIViewController {
             viewController.present(singleImageVC, animated: true)
         }
@@ -87,8 +92,6 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
         guard var photo = photo(at: index) else { return }
         
         let newLikeStatus = !photo.isLiked
-        
-        // Оптимистичное обновление
         photo.isLiked = newLikeStatus
         photos[index] = photo
         cell.setLikeButtonImage(isLiked: newLikeStatus)
@@ -109,7 +112,6 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
                         self.photos[index] = updatedPhoto
                     }
                 case .failure(let error):
-                    // Откатываем изменения
                     photo.isLiked = !newLikeStatus
                     self.photos[index] = photo
                     cell.setLikeButtonImage(isLiked: !newLikeStatus)
@@ -123,54 +125,9 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
         guard indexPath.row < photos.count else { return }
         let photo = photos[indexPath.row]
         
-        // Начальная настройка ячейки с placeholder
-        cell.cellImage.contentMode = .center
-        let placeholderImage = UIImage(named: "stab_icon")
-        cell.cellImage.image = placeholderImage
-        
-        // Настройка загрузки изображения
-        DispatchQueue.main.async { [weak self] in
-            guard self != nil else { return }
-            
-            if let url = URL(string: photo.urls.regular) {
-                cell.cellImage.kf.setImage(
-                    with: url,
-                    placeholder: placeholderImage,
-                    options: [
-                        .transition(.fade(0.3)),
-                        .scaleFactor(UIScreen.main.scale),
-                        .cacheOriginalImage,
-                        .keepCurrentImageWhileLoading
-                    ]
-                ) { [weak cell] result in
-                    guard let cell = cell else { return }
-                    switch result {
-                    case .success:
-                        cell.cellImage.contentMode = .scaleAspectFill
-                    case .failure:
-                        cell.cellImage.contentMode = .center
-                        cell.cellImage.image = placeholderImage
-                    }
-                }
-            }
-        }
-        
-        // Настройка остальных элементов ячейки
+        // Используем статический форматтер
+        cell.dateLabel.text = photo.createdAt.map { ImagesListPresenter.dateFormatter.string(from: $0) }
         cell.setLikeButtonImage(isLiked: photo.isLiked)
-        
-        let dateFormatter: DateFormatter = {
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "ru_RU")
-            formatter.dateStyle = .long
-            formatter.timeStyle = .none
-            formatter.doesRelativeDateFormatting = false
-            return formatter
-        }()
-        
-        cell.dateLabel.text = photo.createdAt.map { dateFormatter.string(from: $0) }
-        DispatchQueue.main.async {
-            cell.setupGradient()
-        }
     }
     
     // MARK: - Private Methods
@@ -186,11 +143,9 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
     @objc private func handlePhotosChanged(_ notification: Notification) {
         let newPhotos = imagesListService.photos
         
-        // Проверяем, что новые фотографии действительно новые
         if newPhotos.count > photos.count {
             updateTableViewAnimated(newPhotos: newPhotos)
         } else if newPhotos.count < photos.count {
-            // Это случай pull-to-refresh
             photos = newPhotos
             imageSizes = newPhotos.map { $0.size }
             view?.reloadTableView()
