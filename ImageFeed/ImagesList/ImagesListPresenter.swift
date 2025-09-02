@@ -63,30 +63,28 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
     }
     
     func calculateCellHeight(for indexPath: IndexPath, tableViewWidth: CGFloat) -> CGFloat {
-        let imageViewWidth = tableViewWidth - 16 - 16
+        let imageViewWidth = tableViewWidth - 16 - 16 // Отступы слева и справа
         
-        guard indexPath.row < imageSizes.count else {
-            return 200
+        guard indexPath.row < photos.count else {
+            return 200 // дефолтная высота
         }
         
-        let imageSize = imageSizes[indexPath.row]
+        let photo = photos[indexPath.row]
+        let imageSize = photo.size // Берем размер напрямую из фото
+        
+        guard imageSize.width > 0 else {
+            return 200 // защита от деления на ноль
+        }
+        
         let scaleRatio = imageViewWidth / imageSize.width
         let imageViewHeight = imageSize.height * scaleRatio
         
-        return imageViewHeight + 4 + 4
+        return imageViewHeight + 4 + 4 // 4+4 = отступы сверху и снизу
     }
     
-    func didSelectPhoto(at index: Int) {
-        guard let photo = photo(at: index) else { return }
-        
-        let singleImageVC = SingleImageViewController()
-        singleImageVC.imageURL = photo.largeImageURL
-        singleImageVC.modalPresentationStyle = .fullScreen
-        
-        if let viewController = view as? UIViewController {
-            viewController.present(singleImageVC, animated: true)
+    func selectedPhoto(at index: Int) -> Photo? {
+            return photo(at: index)
         }
-    }
     
     func didTapLikeButton(at index: Int, cell: ImagesListCellProtocol) {
         guard var photo = photo(at: index) else { return }
@@ -137,12 +135,6 @@ final class ImagesListPresenter: ImagesListPresenterProtocol {
         }
         cell.setLikeButtonImage(isLiked: photo.isLiked)
     }
-    
-#if DEBUG
-    func setPhotosForTesting(_ photos: [Photo]) {
-        self.photos = photos
-    }
-#endif
     
     // MARK: - Private Methods
     private func setupNotificationObserver() {

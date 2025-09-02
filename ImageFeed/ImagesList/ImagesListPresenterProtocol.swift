@@ -5,7 +5,7 @@
 //  Created by Рустам Ханахмедов on 30.08.2025.
 //
 
-import UIKit
+import Foundation
 
 protocol ImagesListPresenterProtocol: AnyObject {
     var view: ImagesListViewProtocol? { get set }
@@ -13,9 +13,9 @@ protocol ImagesListPresenterProtocol: AnyObject {
     func viewDidLoad()
     func fetchPhotosNextPage()
     func refreshPhotos()
-    func photo(at index: Int) -> Photo? // Добавляем этот метод
+    func photo(at index: Int) -> Photo?
+    func selectedPhoto(at index: Int) -> Photo?
     func calculateCellHeight(for indexPath: IndexPath, tableViewWidth: CGFloat) -> CGFloat
-    func didSelectPhoto(at index: Int)
     func configureCell(_ cell: ImagesListCellProtocol, at indexPath: IndexPath)
     func didTapLikeButton(at index: Int, cell: ImagesListCellProtocol)
 }

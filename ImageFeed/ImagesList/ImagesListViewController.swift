@@ -22,7 +22,7 @@ private enum ImagesListConstants {
 final class ImagesListViewController: UIViewController {
     
     // MARK: - Properties
-    private let presenter: ImagesListPresenterProtocol
+    var presenter: ImagesListPresenterProtocol
     private let refreshControl = UIRefreshControl()
     
     // MARK: - UI Elements
@@ -180,6 +180,13 @@ extension ImagesListViewController: UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        presenter.didSelectPhoto(at: indexPath.row)
+        // Получаем выбранную фотографию из presenter'а
+        guard let photo = presenter.selectedPhoto(at: indexPath.row) else { return }
+        
+        // Создаем и показываем SingleImageViewController во view controller'е
+        let singleImageVC = SingleImageViewController()
+        singleImageVC.imageURL = photo.largeImageURL
+        singleImageVC.modalPresentationStyle = .fullScreen
+        present(singleImageVC, animated: true)
     }
 }

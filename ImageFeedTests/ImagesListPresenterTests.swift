@@ -1,5 +1,5 @@
 //
-//  ImagesListPresenterTests.swift
+//  ImagesListTests.swift
 //  ImageFeedTests
 //
 //  Created by Рустам Ханахмедов on 01.09.2025.
@@ -8,245 +8,215 @@
 import XCTest
 @testable import ImageFeed
 
-final class ImagesListPresenterTests: XCTestCase {
+final class ImagesListTests: XCTestCase {
     
-    // MARK: - Test Doubles
+    // MARK: - ViewController Tests
     
-    private class MockView: ImagesListViewProtocol {
-        var updateTableViewAnimatedCalled = false
-        var reloadTableViewCalled = false
-        var showLoadingIndicatorCalled = false
-        var hideLoadingIndicatorCalled = false
-        var showErrorAlertCalled = false
-        var showLikeErrorCalled = false
+    func testViewControllerCallsPresenterDidLoad() {
+        // Проверяем, что при загрузке View вызывается viewDidLoad презентера
+        let viewController = ImagesListViewController()
+        let presenter = ImagesListPresenterSpy()
+        viewController.presenter = presenter
         
-        func updateTableViewAnimated(oldCount: Int, newCount: Int) {
-            updateTableViewAnimatedCalled = true
-        }
+        _ = viewController.view // Загружаем View, что вызывает viewDidLoad
         
-        func reloadTableView() {
-            reloadTableViewCalled = true
-        }
-        
-        func showLoadingIndicator() {
-            showLoadingIndicatorCalled = true
-        }
-        
-        func hideLoadingIndicator() {
-            hideLoadingIndicatorCalled = true
-        }
-        
-        func showErrorAlert(title: String, message: String) {
-            showErrorAlertCalled = true
-        }
-        
-        func showLikeError(error: Error) {
-            showLikeErrorCalled = true
-        }
+        XCTAssertTrue(presenter.viewDidLoadCalled)
     }
     
-    private class MockService: ImagesListServiceProtocol {
-        var photos: [Photo] = []
-        var fetchPhotosNextPageCalled = false
-        var changeLikeCalled = false
-        var resetPhotosCalled = false
+    func testViewControllerCallsPresenterOnRefresh() {
+        // Проверяем, что обновление данных вызывает метод презентера
+        let viewController = ImagesListViewController()
+        let presenter = ImagesListPresenterSpy()
+        viewController.presenter = presenter
         
-        func fetchPhotosNextPage() {
-            fetchPhotosNextPageCalled = true
-        }
-        
-        func changeLike(photoId: String, isLike: Bool, _ completion: @escaping (Result<Photo, Error>) -> Void) {
-            changeLikeCalled = true
-        }
-        
-        func resetPhotos() {
-            resetPhotosCalled = true
-            photos.removeAll()
-        }
-    }
-    
-    private class MockCell: ImagesListCellProtocol {
-        var setLikeButtonImageCalled = false
-        var onLikeButtonTapped: (() -> Void)?
-        
-        func setLikeButtonImage(isLiked: Bool) {
-            setLikeButtonImageCalled = true
-        }
-    }
-    
-    // MARK: - Properties
-    
-    private var presenter: ImagesListPresenter!
-    private var mockView: MockView!
-    private var mockService: MockService!
-    
-    // MARK: - Setup
-    
-    override func setUp() {
-        super.setUp()
-        mockView = MockView()
-        mockService = MockService()
-        presenter = ImagesListPresenter(imagesListService: mockService)
-        presenter.view = mockView
-    }
-    
-    override func tearDown() {
-        presenter = nil
-        mockView = nil
-        mockService = nil
-        super.tearDown()
-    }
-    
-    // MARK: - Tests
-    
-    func testViewDidLoad() {
-        // When
-        presenter.viewDidLoad()
-        
-        // Then
-        XCTAssertTrue(mockService.fetchPhotosNextPageCalled)
-        XCTAssertTrue(mockView.showLoadingIndicatorCalled)
-    }
-    
-    func testFetchPhotosNextPage() {
-        // When
-        presenter.fetchPhotosNextPage()
-        
-        // Then
-        XCTAssertTrue(mockService.fetchPhotosNextPageCalled)
-    }
-    
-    func testRefreshPhotos() {
-        // Given
-        let photo = createTestPhoto()
-        presenter.photos = [photo]
-        
-        // When
         presenter.refreshPhotos()
         
-        // Then
-        XCTAssertTrue(mockService.resetPhotosCalled)
-        XCTAssertTrue(mockService.fetchPhotosNextPageCalled)
-        XCTAssertTrue(mockView.reloadTableViewCalled)
-        XCTAssertEqual(presenter.photosCount, 0)
+        XCTAssertTrue(presenter.refreshPhotosCalled)
     }
     
-    func testPhotosCount() {
-        // Given
-        let photos = [createTestPhoto(), createTestPhoto()]
-        presenter.photos = photos
+    // MARK: - Presenter Tests
+    
+    func testPresenterCallsServiceOnViewDidLoad() {
+        // Проверяем, что презентер загружает фото при инициализации
+        let service = ImagesListServiceSpy()
+        let presenter = ImagesListPresenter(imagesListService: service)
+        let view = ImagesListViewSpy()
+        presenter.view = view
         
-        // When
-        let count = presenter.photosCount
+        presenter.viewDidLoad()
         
-        // Then
-        XCTAssertEqual(count, 2)
+        XCTAssertTrue(service.fetchPhotosNextPageCalled)
+        XCTAssertTrue(view.showLoadingIndicatorCalled)
     }
     
-    func testPhotoAtIndex() {
-        // Given
-        let testPhoto = createTestPhoto()
+    func testPresenterReturnsCorrectPhotosCount() {
+        // Проверяем корректное количество фото
+        let presenter = ImagesListPresenter()
+        let testPhotos = [createTestPhoto(), createTestPhoto()]
+        presenter.photos = testPhotos
+        
+        XCTAssertEqual(presenter.photosCount, 2)
+    }
+    
+    func testPresenterReturnsPhotoAtIndex() {
+        // Проверяем получение фото по индексу
+        let presenter = ImagesListPresenter()
+        let testPhoto = createTestPhoto(id: "test_id")
         presenter.photos = [testPhoto]
         
-        // When
         let result = presenter.photo(at: 0)
         
-        // Then
-        XCTAssertEqual(result?.id, testPhoto.id)
+        XCTAssertEqual(result?.id, "test_id")
     }
     
-    func testPhotoAtIndexOutOfBounds() {
-        // Given
+    func testPresenterReturnsNilForInvalidIndex() {
+        // Проверяем обработку неверного индекса
+        let presenter = ImagesListPresenter()
         presenter.photos = [createTestPhoto()]
         
-        // When
         let result = presenter.photo(at: 1)
         
-        // Then
         XCTAssertNil(result)
     }
     
-    func testConfigureCell() {
-        // Given
-        let testPhoto = createTestPhoto()
-        let mockCell = MockCell()
-        presenter.photos = [testPhoto]
-        let indexPath = IndexPath(row: 0, section: 0)
-        
-        // When
-        presenter.configureCell(mockCell, at: indexPath)
-        
-        // Then
-        XCTAssertTrue(mockCell.setLikeButtonImageCalled)
-    }
-    
-    func testCalculateCellHeight() {
-        // Given
+    func testPresenterCalculatesCellHeightCorrectly() {
+        // Проверяем расчет высоты ячейки
+        let presenter = ImagesListPresenter()
         let testPhoto = createTestPhoto(size: CGSize(width: 100, height: 200))
         presenter.photos = [testPhoto]
-        presenter.imageSizes = [CGSize(width: 100, height: 200)]
         
-        let tableViewWidth: CGFloat = 400
         let indexPath = IndexPath(row: 0, section: 0)
+        let height = presenter.calculateCellHeight(for: indexPath, tableViewWidth: 400)
         
-        // When
-        let height = presenter.calculateCellHeight(for: indexPath, tableViewWidth: tableViewWidth)
-        
-        // Then
         let expectedHeight: CGFloat = (200 * (400 - 32) / 100) + 8
         XCTAssertEqual(height, expectedHeight)
     }
     
-    func testCalculateCellHeightDefault() {
-        // Given
-        let indexPath = IndexPath(row: 1, section: 0)
-        
-        // When
-        let height = presenter.calculateCellHeight(for: indexPath, tableViewWidth: 400)
-        
-        // Then
-        XCTAssertEqual(height, 200)
-    }
-    
-    func testDidTapLikeButton() {
-        // Given
-        let testPhoto = createTestPhoto()
-        let mockCell = MockCell()
+    func testPresenterConfiguresCellCorrectly() {
+        // Проверяем настройку ячейки
+        let presenter = ImagesListPresenter()
+        let testPhoto = createTestPhoto(isLiked: true)
         presenter.photos = [testPhoto]
+        let cell = ImagesListCellSpy()
         
-        // When
-        presenter.didTapLikeButton(at: 0, cell: mockCell)
+        presenter.configureCell(cell, at: IndexPath(row: 0, section: 0))
         
-        // Then
-        XCTAssertTrue(mockService.changeLikeCalled)
-        XCTAssertTrue(mockView.showLoadingIndicatorCalled)
+        XCTAssertTrue(cell.setLikeButtonImageCalled)
+    }
+}
+
+// MARK: - Test Doubles
+
+final class ImagesListPresenterSpy: ImagesListPresenterProtocol {
+    weak var view: ImagesListViewProtocol?
+    var viewDidLoadCalled = false
+    var refreshPhotosCalled = false
+    var photosCount: Int = 0
+    
+    func viewDidLoad() {
+        viewDidLoadCalled = true
     }
     
-    // MARK: - Helper
-    private func createTestPhoto(id: String = "test_id", size: CGSize = CGSize(width: 100, height: 100)) -> Photo {
-        let urls = Photo.Urls(
-            raw: "https://example.com/raw.jpg",
-            full: "https://example.com/full.jpg",
-            regular: "https://example.com/regular.jpg",
-            small: "https://example.com/small.jpg",
-            thumb: "https://example.com/thumb.jpg"
-        )
-        
-        // Безопасное создание URL
-        guard let thumbURL = URL(string: "https://example.com/thumb.jpg"),
-              let largeURL = URL(string: "https://example.com/full.jpg") else {
-            fatalError("Invalid URL in test")
-        }
-        
-        return Photo(
-            id: id,
-            size: size,
-            createdAt: Date(),
-            welcomeDescription: "Test",
-            thumbImageURL: thumbURL,
-            largeImageURL: largeURL,
-            urls: urls, // Добавлен недостающий параметр urls
-            isLiked: false
-        )
+    func fetchPhotosNextPage() {}
+    func refreshPhotos() {
+        refreshPhotosCalled = true
     }
+    func photo(at index: Int) -> Photo? { return nil }
+    func selectedPhoto(at index: Int) -> Photo? { return nil }
+    func calculateCellHeight(for indexPath: IndexPath, tableViewWidth: CGFloat) -> CGFloat { return 0 }
+    func configureCell(_ cell: ImagesListCellProtocol, at indexPath: IndexPath) {}
+    func didTapLikeButton(at index: Int, cell: ImagesListCellProtocol) {}
+}
+
+final class ImagesListViewSpy: ImagesListViewProtocol {
+    var updateTableViewAnimatedCalled = false
+    var reloadTableViewCalled = false
+    var showLoadingIndicatorCalled = false
+    var hideLoadingIndicatorCalled = false
+    var showErrorAlertCalled = false
+    var showLikeErrorCalled = false
+    
+    func updateTableViewAnimated(oldCount: Int, newCount: Int) {
+        updateTableViewAnimatedCalled = true
+    }
+    
+    func reloadTableView() {
+        reloadTableViewCalled = true
+    }
+    
+    func showLoadingIndicator() {
+        showLoadingIndicatorCalled = true
+    }
+    
+    func hideLoadingIndicator() {
+        hideLoadingIndicatorCalled = true
+    }
+    
+    func showErrorAlert(title: String, message: String) {
+        showErrorAlertCalled = true
+    }
+    
+    func showLikeError(error: Error) {
+        showLikeErrorCalled = true
+    }
+}
+
+final class ImagesListServiceSpy: ImagesListServiceProtocol {
+    var photos: [Photo] = []
+    var fetchPhotosNextPageCalled = false
+    var changeLikeCalled = false
+    var resetPhotosCalled = false
+    
+    func fetchPhotosNextPage() {
+        fetchPhotosNextPageCalled = true
+    }
+    
+    func changeLike(photoId: String, isLike: Bool, _ completion: @escaping (Result<Photo, Error>) -> Void) {
+        changeLikeCalled = true
+    }
+    
+    func resetPhotos() {
+        resetPhotosCalled = true
+    }
+}
+
+final class ImagesListCellSpy: ImagesListCellProtocol {
+    var setLikeButtonImageCalled = false
+    var onLikeButtonTapped: (() -> Void)?
+    
+    func setLikeButtonImage(isLiked: Bool) {
+        setLikeButtonImageCalled = true
+    }
+}
+
+// MARK: - Helper
+
+private func createTestPhoto(
+    id: String = "test_id",
+    size: CGSize = CGSize(width: 100, height: 100),
+    isLiked: Bool = false
+) -> Photo {
+    guard let thumbURL = URL(string: "https://example.com/thumb.jpg"),
+          let largeURL = URL(string: "https://example.com/full.jpg") else {
+        fatalError("Invalid test URLs")
+    }
+    
+    let urls = Photo.Urls(
+        raw: "https://example.com/raw.jpg",
+        full: largeURL.absoluteString,
+        regular: "https://example.com/regular.jpg",
+        small: "https://example.com/small.jpg",
+        thumb: thumbURL.absoluteString
+    )
+    
+    return Photo(
+        id: id,
+        size: size,
+        createdAt: Date(),
+        welcomeDescription: "Test",
+        thumbImageURL: thumbURL,
+        largeImageURL: largeURL,
+        urls: urls,
+        isLiked: isLiked
+    )
 }

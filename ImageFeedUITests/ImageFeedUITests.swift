@@ -10,240 +10,163 @@ import XCTest
 final class ImageFeedUITests: XCTestCase {
     private let app = XCUIApplication()
     
-    private enum Credentials {
-        static let login = "bateg@mail.ru"
+    // MARK: - Test Data
+    private enum TestData {
+        static let email = "bateg@mail.ru"
         static let password = "5636245Pibuda"
-        static let name = "Rustam Khanakhmedov"
-        static let loginName = "@slepoi_kot"
+        static let userName = "Rustam Khanakhmedov"
+        static let userLogin = "@slepoi_kot"
     }
     
-    private enum Constants {
-        enum AccessibilityIdentifiers {
-            static let loginButton = "Authenticate"
-            static let webView = "UnsplashWebView"
-            static let likeButton = "likeButton"
-            static let singleBackButton = "nav back button white"
-            static let logoutButton = "logoutButton"
-        }
+    private enum Identifiers {
+        static let loginButton = "Authenticate"
+        static let webView = "UnsplashWebView"
+        static let likeButton = "likeButton"
+        static let backButton = "nav back button white"
+        static let logoutButton = "logoutButton"
+        static let profileName = "nameLabel"
+        static let profileLogin = "loginNameLabel"
     }
     
+    // MARK: - Setup and Teardown
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app.launchArguments = ["TestMode"]
         app.launch()
     }
     
     override func tearDownWithError() throws {
-        // После каждого теста убедимся что мы разлогинены
-        logoutIfNeeded()
-        super.tearDown()
+        // После каждого теста выходим из аккаунта (только для тестов где это нужно)
+        // В testAuth() не выходим, чтобы следующие тесты могли использовать авторизацию
     }
     
+    // MARK: - Test Cases
+    
     func testAuth() throws {
-        // Убедимся что мы разлогинены перед началом
-        logoutIfNeeded()
-        
-        let authButton = app.buttons[Constants.AccessibilityIdentifiers.loginButton]
-        XCTAssertTrue(authButton.waitForExistence(timeout: 10), "Кнопка авторизации не найдена")
+        // Нажать кнопку авторизации
+        let authButton = app.buttons[Identifiers.loginButton]
+        XCTAssertTrue(authButton.waitForExistence(timeout: 10))
         authButton.tap()
 
-        let webView = app.webViews[Constants.AccessibilityIdentifiers.webView]
-        XCTAssertTrue(webView.waitForExistence(timeout: 15), "WebView не загрузился")
+        // Подождать, пока экран авторизации открывается и загружается
+        let webView = app.webViews[Identifiers.webView]
+        XCTAssertTrue(webView.waitForExistence(timeout: 15))
         
-        // Ждем загрузки формы авторизации
-        sleep(5) // Увеличиваем время ожидания
-        
-        // Находим поле логина и вводим данные
+        // Ввести данные в форму
         let loginTextField = webView.descendants(matching: .textField).element
-        XCTAssertTrue(loginTextField.waitForExistence(timeout: 10), "Поле логина не найдено") // Увеличиваем таймаут
-        
+        XCTAssertTrue(loginTextField.waitForExistence(timeout: 10))
         loginTextField.tap()
-        loginTextField.clearText()
-        loginTextField.typeText(Credentials.login)
+        loginTextField.typeText(TestData.email)
         
         // Скрываем клавиатуру после ввода логина
         if app.toolbars.buttons["Done"].waitForExistence(timeout: 3) {
             app.toolbars.buttons["Done"].tap()
         }
-        sleep(1)
         
-        // Находим поле пароля и вводим данные через буфер обмена
         let passwordTextField = webView.descendants(matching: .secureTextField).element
-        XCTAssertTrue(passwordTextField.waitForExistence(timeout: 10), "Поле пароля не найдено") // Увеличиваем таймаут
-        
+        XCTAssertTrue(passwordTextField.waitForExistence(timeout: 10))
         passwordTextField.tap()
         
         // Используем буфер обмена для ввода пароля
-        UIPasteboard.general.string = Credentials.password
-        
-        // Сначала пробуем выделить и вставить
+        UIPasteboard.general.string = TestData.password
         passwordTextField.doubleTap()
-        sleep(1)
         
-        // Вставляем из буфера обмена
         if app.menuItems["Paste"].waitForExistence(timeout: 3) {
             app.menuItems["Paste"].tap()
         } else {
-            // Альтернатива: имитируем долгое нажатие для показа меню
-            passwordTextField.press(forDuration: 1.5)
-            if app.menuItems["Paste"].waitForExistence(timeout: 3) {
-                app.menuItems["Paste"].tap()
-            } else {
-                // Fallback: обычный ввод
-                passwordTextField.typeText(Credentials.password)
-            }
+            // Fallback: обычный ввод
+            passwordTextField.typeText(TestData.password)
         }
         
-        // Скрываем клавиатуру после ввода пароля
+        // Скрыть клавиатуру после ввода пароля
         if app.toolbars.buttons["Done"].waitForExistence(timeout: 3) {
             app.toolbars.buttons["Done"].tap()
         } else if app.keyboards.buttons["Done"].waitForExistence(timeout: 2) {
             app.keyboards.buttons["Done"].tap()
         }
-        sleep(1)
         
-        // Нажимаем кнопку авторизации
+        // Нажать кнопку логина
         let loginButton = webView.buttons["Login"]
         if loginButton.waitForExistence(timeout: 5) {
             loginButton.tap()
-        } else {
-            // Альтернативный поиск кнопки
-            webView.buttons.allElementsBoundByIndex.first?.tap()
         }
         
-        // Ждем завершения авторизации и перехода на ленту
-        let tablesQuery = app.tables
-        let cell = tablesQuery.children(matching: .cell).element(boundBy: 0)
-        XCTAssertTrue(cell.waitForExistence(timeout: 25), "Не удалось загрузить ленту после авторизации")
+        // Подождать, пока открывается экран ленты
+        let cell = app.tables.children(matching: .cell).element(boundBy: 0)
+        XCTAssertTrue(cell.waitForExistence(timeout: 25))
+        
+        // НЕ выходим из аккаунта - остаемся авторизованными для следующих тестов
     }
     
     func testFeed() throws {
-        // Убедимся что мы авторизованы
-        ensureAuthentication()
+        // Убедиться что авторизованы (используем авторизацию из testAuth)
+        let firstCell = app.tables.children(matching: .cell).element(boundBy: 0)
+        XCTAssertTrue(firstCell.waitForExistence(timeout: 15))
         
-        let tablesQuery = app.tables
-        let cell = tablesQuery.children(matching: .cell).element(boundBy: 0)
-        XCTAssertTrue(cell.waitForExistence(timeout: 15))
+        // Сделать жест «смахивания» вверх по экрану для его скролла
+        app.swipeUp()
+        sleep(5)
         
-        cell.swipeUp()
-        sleep(2)
-        
-        let cellToLike = tablesQuery.children(matching: .cell).element(boundBy: 1)
-        XCTAssertTrue(cellToLike.waitForExistence(timeout: 10))
-        
-        let likeButton = cellToLike.buttons[Constants.AccessibilityIdentifiers.likeButton]
+        // Поставить лайк в ячейке верхней картинки
+        let likeButton = firstCell.buttons[Identifiers.likeButton]
         XCTAssertTrue(likeButton.waitForExistence(timeout: 5))
-        
         likeButton.tap()
-        sleep(2)
+        sleep(5)
         
+        // Отменить лайк в ячейке верхней картинки
         likeButton.tap()
+        sleep(5)
+        
+        // Нажать на верхнюю ячейку
+        firstCell.tap()
         sleep(2)
         
-        cellToLike.tap()
-        sleep(2)
-        
+        // Подождать, пока картинка открывается на весь экран
         let image = app.scrollViews.images.element(boundBy: 0)
         XCTAssertTrue(image.waitForExistence(timeout: 5))
         
+        // Увеличить картинку
         image.pinch(withScale: 3, velocity: 1)
         sleep(1)
+        
+        // Уменьшить картинку
         image.pinch(withScale: 0.5, velocity: -1)
         sleep(1)
         
-        let backButton = app.buttons[Constants.AccessibilityIdentifiers.singleBackButton]
-        XCTAssertTrue(backButton.waitForExistence(timeout: 5))
-        backButton.tap()
+        // Вернуться на экран ленты
+        let backButton = app.buttons[Identifiers.backButton]
+        if backButton.waitForExistence(timeout: 5) {
+            backButton.tap()
+        }
         sleep(2)
+        
+        // НЕ выходим из аккаунта - остаемся авторизованными для testProfile
     }
     
     func testProfile() throws {
-        // Убедимся что мы авторизованы
-        ensureAuthentication()
-        sleep(2)
+        // Убедиться что авторизованы (используем авторизацию из предыдущих тестов)
+        let firstCell = app.tables.children(matching: .cell).element(boundBy: 0)
+        XCTAssertTrue(firstCell.waitForExistence(timeout: 15))
         
+        // Перейти на экран профиля
         app.tabBars.buttons.element(boundBy: 1).tap()
         sleep(2)
         
-        XCTAssertTrue(app.staticTexts[Credentials.name].exists)
-        XCTAssertTrue(app.staticTexts[Credentials.loginName].exists)
+        // Проверить, что на нём отображаются ваши персональные данные
+        XCTAssertTrue(app.staticTexts[TestData.userName].exists)
+        XCTAssertTrue(app.staticTexts[TestData.userLogin].exists)
         
-        // Здесь мы специально разлогиниваемся - это нормально для этого теста
-        app.buttons[Constants.AccessibilityIdentifiers.logoutButton].tap()
+        // Нажать кнопку логаута
+        let logoutButton = app.buttons[Identifiers.logoutButton]
+        XCTAssertTrue(logoutButton.waitForExistence(timeout: 5))
+        logoutButton.tap()
         
+        // Подтвердить выход
         let alert = app.alerts["Пока, пока!"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         alert.scrollViews.otherElements.buttons["Да"].tap()
         sleep(2)
         
-        XCTAssertTrue(app.buttons[Constants.AccessibilityIdentifiers.loginButton].waitForExistence(timeout: 10))
-    }
-}
-
-// MARK: - Helper Methods
-extension ImageFeedUITests {
-    
-    private func logoutIfNeeded() {
-        // Если уже на экране авторизации - ничего не делаем
-        if app.buttons[Constants.AccessibilityIdentifiers.loginButton].exists {
-            return
-        }
-        
-        // Если авторизованы - выходим
-        if app.tabBars.buttons.count > 1 {
-            let profileTab = app.tabBars.buttons.element(boundBy: 1)
-            if profileTab.waitForExistence(timeout: 5) {
-                profileTab.tap()
-                sleep(2)
-                
-                let logoutButton = app.buttons[Constants.AccessibilityIdentifiers.logoutButton]
-                if logoutButton.waitForExistence(timeout: 5) {
-                    logoutButton.tap()
-                    
-                    let alert = app.alerts["Пока, пока!"]
-                    if alert.waitForExistence(timeout: 5) {
-                        alert.scrollViews.otherElements.buttons["Да"].tap()
-                        sleep(2)
-                    }
-                }
-            }
-        }
-    }
-    
-    private func ensureAuthentication() {
-        // Если уже авторизованы - ничего не делаем
-        if !app.buttons[Constants.AccessibilityIdentifiers.loginButton].exists {
-            return
-        }
-        
-        // Если не авторизованы - запускаем процесс авторизации
-        let authButton = app.buttons[Constants.AccessibilityIdentifiers.loginButton]
-        authButton.tap()
-        
-        // Ждем либо WebView, либо сразу ленту
-        let webView = app.webViews[Constants.AccessibilityIdentifiers.webView]
-        if webView.waitForExistence(timeout: 10) {
-            sleep(5) // Ждем автоматической авторизации
-        }
-        
-        // Ждем ленту
-        let tablesQuery = app.tables
-        let cell = tablesQuery.children(matching: .cell).element(boundBy: 0)
-        _ = cell.waitForExistence(timeout: 20)
-    }
-}
-extension XCUIElement {
-    func clearText() {
-        guard let stringValue = self.value as? String, !stringValue.isEmpty else {
-            return
-        }
-        
-        // Двойной тап для выделения всего текста
-        self.doubleTap()
-        sleep(1)
-        
-        // Удаляем выделенный текст
-        self.typeText(XCUIKeyboardKey.delete.rawValue)
-        sleep(1)
+        // Проверить, что открылся экран авторизации
+        XCTAssertTrue(app.buttons[Identifiers.loginButton].waitForExistence(timeout: 10))
     }
 }

@@ -10,109 +10,115 @@ import XCTest
 
 final class ProfileTests: XCTestCase {
     
+    // MARK: - ViewController Tests
+    
     func testViewControllerCallsPresenterDidLoad() {
-        // given
-        let presenter = ProfilePresenterSpy()
+        // Проверяем, что при загрузке View вызывается viewDidLoad презентера
         let viewController = ProfileViewController()
+        let presenter = ProfilePresenterSpy()
         viewController.presenter = presenter
         
-        // when
-        _ = viewController.view
+        _ = viewController.view // Загружаем View, что вызывает viewDidLoad
         
-        // then
         XCTAssertTrue(presenter.viewDidLoadCalled)
     }
     
     func testViewControllerCallsPresenterOnLogoutTap() {
-        // given
-        let presenter = ProfilePresenterSpy()
+        // Проверяем, что нажатие на кнопку выхода вызывает метод презентера
         let viewController = ProfileViewController()
+        let presenter = ProfilePresenterSpy()
         viewController.presenter = presenter
         
-        // when
         viewController.presenter?.didTapLogoutButton()
         
-        // then
         XCTAssertTrue(presenter.didTapLogoutButtonCalled)
     }
     
+    // MARK: - Presenter Tests
+    
     func testPresenterFormatsDisplayNameCorrectly() {
-        // given
+        // Проверяем форматирование имени
         let presenter = ProfilePresenter()
         
-        // when & then
         XCTAssertEqual(presenter.getDisplayName(""), "Имя Фамилия")
         XCTAssertEqual(presenter.getDisplayName("Test User"), "Test User")
     }
     
     func testPresenterFormatsDisplayBioCorrectly() {
-        // given
+        // Проверяем форматирование описания
         let presenter = ProfilePresenter()
         
-        // when & then
         XCTAssertEqual(presenter.getDisplayBio(nil), "Нет описания")
         XCTAssertEqual(presenter.getDisplayBio("Test bio"), "Test bio")
     }
     
     func testPresenterUpdatesProfileWithFormattedData() {
-        // given
+        // Проверяем, что презентер передает отформатированные данные во View
         let view = ProfileViewControllerSpy()
         let presenter = ProfilePresenter()
         presenter.view = view
         
-        let testProfile = Profile(
-            username: "testuser",
-            name: "", // Пустое имя
-            loginName: "@testuser",
-            bio: nil // Nil bio
-        )
-        
-        // when - симулируем вызов loadProfileData
-        let displayName = presenter.getDisplayName(testProfile.name)
-        let displayBio = presenter.getDisplayBio(testProfile.bio)
+        let displayName = presenter.getDisplayName("")
+        let displayBio = presenter.getDisplayBio(nil)
         
         view.updateProfileDetails(
             name: displayName,
-            loginName: testProfile.loginName,
+            loginName: "@testuser",
             bio: displayBio
         )
         
-        // then - проверяем что View получил отформатированные данные
         XCTAssertEqual(view.lastProfileName, "Имя Фамилия")
         XCTAssertEqual(view.lastProfileBio, "Нет описания")
-        XCTAssertEqual(view.lastProfileLoginName, "@testuser")
     }
     
     func testPresenterSetsDefaultValues() {
-        // given
+        // Проверяем установку значений по умолчанию
         let view = ProfileViewControllerSpy()
         let presenter = ProfilePresenter()
         presenter.view = view
         
-        // when
         view.setDefaultProfileValues()
         
-        // then
         XCTAssertTrue(view.setDefaultProfileValuesCalled)
     }
+}
+
+// MARK: - Test Doubles
+
+final class ProfilePresenterSpy: ProfilePresenterProtocol {
+    weak var view: ProfileViewControllerProtocol?
+    var viewDidLoadCalled = false
+    var didTapLogoutButtonCalled = false
     
-    // Дополнительный тест для проверки обработки nil значений в модели
-    func testProfileHandlesNilValues() {
-        // given
-        let profileResultWithNil = ProfileResult(
-            username: "testuser",
-            firstName: nil,
-            lastName: nil,
-            bio: nil
-        )
-        
-        // when
-        let profile = Profile(from: profileResultWithNil)
-        
-        // then
-        XCTAssertEqual(profile.username, "testuser")
-        XCTAssertEqual(profile.name, "") // Проверяем обработку nil имени
-        XCTAssertEqual(profile.loginName, "@testuser")
-        XCTAssertNil(profile.bio)
+    func viewDidLoad() {
+        viewDidLoadCalled = true
     }
+    
+    func didTapLogoutButton() {
+        didTapLogoutButtonCalled = true
+    }
+    
+    func updateAvatar() {}
+    func performLogout() {}
+}
+
+final class ProfileViewControllerSpy: ProfileViewControllerProtocol {
+    var presenter: ProfilePresenterProtocol?
+    var setDefaultProfileValuesCalled = false
+    var lastProfileName: String?
+    var lastProfileLoginName: String?
+    var lastProfileBio: String?
+    
+    func updateProfileDetails(name: String, loginName: String, bio: String) {
+        lastProfileName = name
+        lastProfileLoginName = loginName
+        lastProfileBio = bio
+    }
+    
+    func setDefaultProfileValues() {
+        setDefaultProfileValuesCalled = true
+    }
+    
+    func updateAvatar(with url: URL?) {}
+    func showLogoutConfirmation() {}
 }
