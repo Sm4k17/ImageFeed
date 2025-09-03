@@ -12,10 +12,10 @@ final class ImageFeedUITests: XCTestCase {
     
     // MARK: - Test Data
     private enum TestData {
-        static let email = "bateg@mail.ru"
-        static let password = "5636245Pibuda"
-        static let userName = "Rustam Khanakhmedov"
-        static let userLogin = "@slepoi_kot"
+        static let email = ""
+        static let password = ""
+        static let userName = ""
+        static let userLogin = ""
     }
     
     private enum Identifiers {
@@ -35,25 +35,30 @@ final class ImageFeedUITests: XCTestCase {
     }
     
     override func tearDownWithError() throws {
-        // После каждого теста выходим из аккаунта (только для тестов где это нужно)
-        // В testAuth() не выходим, чтобы следующие тесты могли использовать авторизацию
+        // Пусто - состояние сохраняется между тестами
+    }
+    
+    // MARK: - Helper Methods
+    private func waitForElementToAppear(_ element: XCUIElement, timeout: TimeInterval = 10) {
+        let existsPredicate = NSPredicate(format: "exists == true")
+        expectation(for: existsPredicate, evaluatedWith: element, handler: nil)
+        waitForExpectations(timeout: timeout, handler: nil)
     }
     
     // MARK: - Test Cases
-    
     func testAuth() throws {
         // Нажать кнопку авторизации
         let authButton = app.buttons[Identifiers.loginButton]
-        XCTAssertTrue(authButton.waitForExistence(timeout: 10))
+        waitForElementToAppear(authButton)
         authButton.tap()
 
         // Подождать, пока экран авторизации открывается и загружается
         let webView = app.webViews[Identifiers.webView]
-        XCTAssertTrue(webView.waitForExistence(timeout: 15))
+        waitForElementToAppear(webView)
         
         // Ввести данные в форму
         let loginTextField = webView.descendants(matching: .textField).element
-        XCTAssertTrue(loginTextField.waitForExistence(timeout: 10))
+        waitForElementToAppear(loginTextField)
         loginTextField.tap()
         loginTextField.typeText(TestData.email)
         
@@ -63,7 +68,7 @@ final class ImageFeedUITests: XCTestCase {
         }
         
         let passwordTextField = webView.descendants(matching: .secureTextField).element
-        XCTAssertTrue(passwordTextField.waitForExistence(timeout: 10))
+        waitForElementToAppear(passwordTextField)
         passwordTextField.tap()
         
         // Используем буфер обмена для ввода пароля
@@ -86,87 +91,114 @@ final class ImageFeedUITests: XCTestCase {
         
         // Нажать кнопку логина
         let loginButton = webView.buttons["Login"]
-        if loginButton.waitForExistence(timeout: 5) {
-            loginButton.tap()
-        }
+        waitForElementToAppear(loginButton)
+        loginButton.tap()
         
         // Подождать, пока открывается экран ленты
         let cell = app.tables.children(matching: .cell).element(boundBy: 0)
-        XCTAssertTrue(cell.waitForExistence(timeout: 25))
+        waitForElementToAppear(cell)
         
         // НЕ выходим из аккаунта - остаемся авторизованными для следующих тестов
     }
     
+    @MainActor
     func testFeed() throws {
-        // Убедиться что авторизованы (используем авторизацию из testAuth)
-        let firstCell = app.tables.children(matching: .cell).element(boundBy: 0)
-        XCTAssertTrue(firstCell.waitForExistence(timeout: 15))
+        let tablesQuery = app.tables
         
-        // Сделать жест «смахивания» вверх по экрану для его скролла
-        app.swipeUp()
-        sleep(5)
+        // Загружается экран ленты
+        let cell = tablesQuery.children(matching: .cell).element(boundBy: 0)
+        waitForElementToAppear(cell)
+        
+        // Жест «смахивания» вверх по экрану
+        cell.swipeUp()
+        
+        sleep(2)
+        
+        let cellToLike = tablesQuery.children(matching: .cell).element(boundBy: 1)
+        waitForElementToAppear(cellToLike)
         
         // Поставить лайк в ячейке верхней картинки
-        let likeButton = firstCell.buttons[Identifiers.likeButton]
-        XCTAssertTrue(likeButton.waitForExistence(timeout: 5))
+        let likeButton = cellToLike.buttons[Identifiers.likeButton]
+        waitForElementToAppear(likeButton)
         likeButton.tap()
+        
+        // Ждем завершения запроса
+        let progressHUD = app.activityIndicators.element
+        if progressHUD.waitForExistence(timeout: 3) {
+            XCTAssertFalse(progressHUD.waitForExistence(timeout: 15))
+        }
+        
+        // Ждем немного, чтобы API "отдохнул"
         sleep(5)
         
         // Отменить лайк в ячейке верхней картинки
-        likeButton.tap()
-        sleep(5)
+        // Переполучаем кнопку, так как она могла обновиться
+        let updatedLikeButton = cellToLike.buttons[Identifiers.likeButton]
+        waitForElementToAppear(updatedLikeButton)
+        updatedLikeButton.tap()
+        
+        // Ждем завершения второго запроса
+        if progressHUD.waitForExistence(timeout: 3) {
+            XCTAssertFalse(progressHUD.waitForExistence(timeout: 15))
+        }
         
         // Нажать на верхнюю ячейку
-        firstCell.tap()
+        cellToLike.tap()
+        
         sleep(2)
         
         // Подождать, пока картинка открывается на весь экран
         let image = app.scrollViews.images.element(boundBy: 0)
-        XCTAssertTrue(image.waitForExistence(timeout: 5))
+        waitForElementToAppear(image)
         
         // Увеличить картинку
         image.pinch(withScale: 3, velocity: 1)
-        sleep(1)
         
         // Уменьшить картинку
         image.pinch(withScale: 0.5, velocity: -1)
-        sleep(1)
         
         // Вернуться на экран ленты
-        let backButton = app.buttons[Identifiers.backButton]
-        if backButton.waitForExistence(timeout: 5) {
-            backButton.tap()
-        }
-        sleep(2)
+        let navBackButtonWhiteButton = app.buttons[Identifiers.backButton]
+        waitForElementToAppear(navBackButtonWhiteButton)
+        navBackButtonWhiteButton.tap()
         
-        // НЕ выходим из аккаунта - остаемся авторизованными для testProfile
+        // Проверить, что вернулись в ленту
+        waitForElementToAppear(cell)
     }
     
+    @MainActor
     func testProfile() throws {
-        // Убедиться что авторизованы (используем авторизацию из предыдущих тестов)
+        // Подождать, пока открывается и загружается экран ленты
         let firstCell = app.tables.children(matching: .cell).element(boundBy: 0)
-        XCTAssertTrue(firstCell.waitForExistence(timeout: 15))
+        waitForElementToAppear(firstCell)
         
         // Перейти на экран профиля
-        app.tabBars.buttons.element(boundBy: 1).tap()
-        sleep(2)
+        let profileTab = app.tabBars.buttons.element(boundBy: 1)
+        waitForElementToAppear(profileTab)
+        profileTab.tap()
         
-        // Проверить, что на нём отображаются ваши персональные данные
-        XCTAssertTrue(app.staticTexts[TestData.userName].exists)
-        XCTAssertTrue(app.staticTexts[TestData.userLogin].exists)
+        // Проверка персональных данных
+        let nameLabel = app.staticTexts[Identifiers.profileName]
+        let loginLabel = app.staticTexts[Identifiers.profileLogin]
+        
+        waitForElementToAppear(nameLabel)
+        waitForElementToAppear(loginLabel)
+        
+        XCTAssertEqual(nameLabel.label, TestData.userName)
+        XCTAssertEqual(loginLabel.label, TestData.userLogin)
         
         // Нажать кнопку логаута
         let logoutButton = app.buttons[Identifiers.logoutButton]
-        XCTAssertTrue(logoutButton.waitForExistence(timeout: 5))
+        waitForElementToAppear(logoutButton)
         logoutButton.tap()
         
         // Подтвердить выход
         let alert = app.alerts["Пока, пока!"]
-        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        waitForElementToAppear(alert)
         alert.scrollViews.otherElements.buttons["Да"].tap()
-        sleep(2)
         
         // Проверить, что открылся экран авторизации
-        XCTAssertTrue(app.buttons[Identifiers.loginButton].waitForExistence(timeout: 10))
+        let authButton = app.buttons[Identifiers.loginButton]
+        waitForElementToAppear(authButton)
     }
 }
