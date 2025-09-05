@@ -23,7 +23,7 @@ private enum ImagesListCellConstants {
 }
 
 // MARK: - ImagesListCell
-final class ImagesListCell: UITableViewCell {
+final class ImagesListCell: UITableViewCell, ImagesListCellProtocol {
     static let reuseIdentifier = "ImagesListCell"
     
     // MARK: - UI Elements
@@ -49,9 +49,11 @@ final class ImagesListCell: UITableViewCell {
         return button
     }()
     
+    // MARK: - Public Properties
+        var onLikeButtonTapped: (() -> Void)?
+    
     // MARK: - Private Properties
     private var gradientLayer: CAGradientLayer?
-    var likeAction: ((Bool) -> Void)?
     
     // MARK: - Lifecycle
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -74,6 +76,7 @@ final class ImagesListCell: UITableViewCell {
         cellImage.image = nil
         dateLabel.text = nil
         likeButton.setImage(nil, for: .normal)
+        onLikeButtonTapped = nil
     }
     
     // MARK: - Setup Methods
@@ -135,6 +138,43 @@ final class ImagesListCell: UITableViewCell {
         cellImage.layer.insertSublayer(gradient, at: 0)
     }
     
+    func setImage(from url: URL?, placeholder: UIImage?) {
+        cellImage.contentMode = .center
+        cellImage.image = placeholder
+        
+        guard let url = url else {
+            cellImage.contentMode = .center
+            cellImage.image = placeholder
+            setupGradient()
+            return
+        }
+        
+        cellImage.kf.setImage(
+            with: url,
+            placeholder: placeholder,
+            options: [
+                .transition(.fade(0.3)),
+                .scaleFactor(UIScreen.main.scale),
+                .cacheOriginalImage,
+                .keepCurrentImageWhileLoading
+            ]
+        ) { [weak self] result in
+            guard let self = self else { return }
+            
+            // Все UI операции должны быть в главном потоке
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self.cellImage.contentMode = .scaleAspectFill
+                case .failure:
+                    self.cellImage.contentMode = .center
+                    self.cellImage.image = placeholder
+                }
+                self.setupGradient()
+            }
+        }
+    }
+    
     // MARK: - Private Methods
     private func updateGradientFrame() {
         gradientLayer?.frame = CGRect(
@@ -147,6 +187,6 @@ final class ImagesListCell: UITableViewCell {
     
     // MARK: - Actions
     @objc private func didTapLikeButton() {
-        likeAction?(!(likeButton.currentImage == UIImage(named: ImagesListCellConstants.Images.likeButtonOn)))
+        onLikeButtonTapped?()
     }
 }

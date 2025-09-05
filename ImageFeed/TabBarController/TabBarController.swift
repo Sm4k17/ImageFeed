@@ -38,7 +38,8 @@ final class MainTabBarController: UITabBarController {
         tabBar.tintColor = TabBarConstants.TabBar.tintColor
         tabBar.unselectedItemTintColor = TabBarConstants.TabBar.unselectedTintColor
         tabBar.isTranslucent = TabBarConstants.TabBar.isTranslucent
-        // УДАЛЕНИЕ ВЕРХНЕЙ ГРАНИЦЫ
+        
+        // Удаление верхней границы
         tabBar.backgroundImage = UIImage()
         tabBar.shadowImage = UIImage()
     }
@@ -51,7 +52,7 @@ final class MainTabBarController: UITabBarController {
         }
         
         let imagesListVC = ImagesListViewController()
-        let profileVC = ProfileViewController()
+        let profileVC = createProfileViewController()
         
         imagesListVC.tabBarItem = UITabBarItem(
             title: nil,
@@ -66,5 +67,17 @@ final class MainTabBarController: UITabBarController {
         )
         
         viewControllers = [imagesListVC, profileVC]
+    }
+    
+    // MARK: - View Controller Factory
+    private func createProfileViewController() -> ProfileViewController {
+        let profileVC = ProfileViewController()
+        let profilePresenter = ProfilePresenter()
+        
+        // Связываем презентер и вьюконтроллер
+        profileVC.presenter = profilePresenter
+        profilePresenter.view = profileVC
+        
+        return profileVC
     }
 }

@@ -7,7 +7,7 @@
 
 import Foundation
 
-final class ProfileService {
+final class ProfileService: ProfileServiceProtocol {
     // MARK: - Singleton
     static let shared = ProfileService()
     private init() {}
@@ -33,12 +33,10 @@ final class ProfileService {
             request: request,
             bearerToken: token
         ) { [weak self] (result: Result<ProfileResult, Error>) in
-            guard let self = self else { return }
-            
             switch result {
             case .success(let profileResultData):
                 let profile = Profile(from: profileResultData)
-                self.profile = profile
+                self?.profile = profile
                 DispatchQueue.main.async {
                     completion(.success(profile))
                 }

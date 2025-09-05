@@ -7,7 +7,7 @@
 
 import Foundation
 
-final class ProfileImageService {
+final class ProfileImageService: ProfileImageServiceProtocol {
     // MARK: - Singleton
     static let shared = ProfileImageService()
     private init() {}
@@ -51,12 +51,10 @@ final class ProfileImageService {
             request: request,
             bearerToken: token
         ) { [weak self] (result: Result<UserResult, Error>) in
-            guard let self = self else { return }
-            
             switch result {
             case .success(let userResult):
                 let imageURL = userResult.profileImage.large
-                self.avatarURL = imageURL
+                self?.avatarURL = imageURL
                 DispatchQueue.main.async {
                     completion(.success(imageURL))
                 }

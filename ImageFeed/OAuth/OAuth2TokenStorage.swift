@@ -8,7 +8,7 @@
 import Foundation
 import Security
 
-final class OAuth2TokenStorage {
+final class OAuth2TokenStorage: OAuth2TokenStorageProtocol {
     
     // MARK: - Singleton
     static let shared = OAuth2TokenStorage()
