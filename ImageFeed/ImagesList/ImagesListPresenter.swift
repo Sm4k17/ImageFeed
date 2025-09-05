@@ -5,7 +5,7 @@
 //  Created by Рустам Ханахмедов on 30.08.2025.
 //
 
-import UIKit
+import Foundation
 
 final class ImagesListPresenter: ImagesListPresenterProtocol {
     
